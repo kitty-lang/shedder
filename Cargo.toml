@@ -1,0 +1,6 @@
+[package]
+name    = "shedder"
+version = "0.0.0"
+license = "MIT"
+authors = ["Matthieu Le Brazidec <matthieu@lebrazidec.email>"]
+edition = "2018"
