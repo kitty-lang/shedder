@@ -4,3 +4,10 @@ version = "0.0.0"
 license = "MIT"
 authors = ["Matthieu Le Brazidec <matthieu@lebrazidec.email>"]
 edition = "2018"
+
+[dependencies]
+cranelift        = "0.30"
+cranelift-faerie = "0.30"
+cranelift-module = "0.30"
+nom              = "5.0.0-beta.2"
+target-lexicon   = "0.3"
