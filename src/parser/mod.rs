@@ -2,60 +2,82 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use fnv::FnvHashMap;
+
+use crate::decl::Decl;
+use crate::lexer::Ident;
 use crate::lexer::Token;
 
-pub mod decl;
-
+mod decl;
 mod error;
+mod expr;
 mod parse;
+mod stmt;
 
-pub use decl::Decl;
 pub use error::*;
 
 use parse::Parse;
 
 pub struct Entry<'e> {
+    pub funcs: FnvHashMap<&'e Ident, Vec<usize>>, // FIXME: duplicates?
     pub decls: Vec<Decl<'e>>,
 }
 
-pub fn parse(tokens: &[Token]) -> Result<Entry> {
-    let mut entry = Entry { decls: vec![] };
+pub fn parse<'t>(tokens: &'t [Token<'t>]) -> Result<Entry<'t>> {
+    let mut entry = Entry {
+        funcs: FnvHashMap::default(),
+        decls: vec![],
+    };
 
     let mut t = 0;
 
     loop {
-        if tokens[t] == Token::EOF {
+        if tokens.len() > t && tokens[t].is_eof() {
             return Ok(entry);
         }
 
-        let mut handled = vec![];
+        let mut error = Error::multiple(vec![]);
 
-        match Decl::parse(&tokens[t..]) {
+        match Decl::parse(split(tokens, t)) {
             Ok((_tokens, decl)) => {
-                entry.decls.push(decl);
+                decl.insert(&mut entry);
                 t = tokens.len() - _tokens.len();
                 continue;
             }
-            Err(err) => match err.into_kind() {
-                ErrorKind::WrongToken {
-                    handled: mut handled_,
-                    ..
-                } => handled.append(&mut handled_),
-            },
+            Err(err) => {
+                error = error.concat(err);
+            }
         }
 
-        return Err(Error::wrong_token(&tokens[t], handled));
+        return Err(error);
+    }
+}
+
+fn split<'t>(tokens: &'t [Token<'t>], at: usize) -> &'t [Token<'t>] {
+    if at >= tokens.len() {
+        println!("done");
+        &[]
+    } else {
+        &tokens[at..]
     }
 }
 
 impl<'e> Display for Entry<'e> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        if !self.decls.is_empty() {
-            writeln!(fmt, "decls:")?;
+        if !self.funcs.is_empty() {
+            writeln!(fmt, "funcs:")?;
+
+            for name in self.funcs.keys() {
+                writeln!(fmt, "  {}", name.inner())?;
+            }
         }
 
-        for decl in &self.decls {
-            write!(fmt, " {}", decl)?;
+        if !self.decls.is_empty() {
+            writeln!(fmt, "decls:")?;
+
+            for decl in &self.decls {
+                writeln!(fmt, "  {}", decl)?;
+            }
         }
 
         Ok(())

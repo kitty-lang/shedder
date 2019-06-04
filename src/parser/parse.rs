@@ -1,31 +1,56 @@
-use crate::lexer::*;
+use crate::lexer::Ident;
+use crate::lexer::Keyword;
+use crate::lexer::Symbol;
+use crate::lexer::Token;
+use crate::lexer::TokenTy;
+use crate::lexer::TokenVariant;
 
 use super::error::*;
 
-pub trait Parse<'p>: Sized {
-    fn parse(tokens: &'p [Token]) -> Result<(&'p [Token], Self)>;
+pub(super) type Tokens<'t> = &'t [Token<'t>];
+
+pub(super) trait Parse<'t>: Sized {
+    fn parse(tokens: Tokens<'t>) -> Result<(Tokens<'t>, Self)>;
 }
 
-impl Token {
-    pub fn is_keyword(&self, keyword: Keyword) -> bool {
-        if let Token::Keyword(keyword_) = self {
-            keyword_ == &keyword
-        } else {
-            false
-        }
-    }
+pub(super) fn try_get_ident<'t>(tokens: Tokens<'t>, at: usize) -> Result<&'t Ident> {
+    let token = if let Some(token) = tokens.get(at) {
+        token
+    } else {
+        return Err(Error::missing_token(vec![TokenTy::Ident]));
+    };
 
-    pub fn ident(&self) -> Result<&Ident> {
-        match self {
-            Token::Ident(ident) => Ok(ident),
-            _ => Err(Error::wrong_token(self, vec![TokenVariant::Ident])),
-        }
+    if let TokenVariant::Ident(ident) = &token.token {
+        Ok(ident)
+    } else {
+        Err(Error::wrong_token(&token, vec![TokenTy::Ident]))
     }
+}
 
-    pub fn symbol(&self, symbol: Symbol) -> Result<()> {
-        match self {
-            Token::Symbol(_) => Ok(()),
-            _ => Err(Error::wrong_token(self, vec![TokenVariant::Symbol(symbol)])),
-        }
+pub(super) fn try_eq_keyword(tokens: Tokens, at: usize, keyword: Keyword) -> Result<()> {
+    let token = if let Some(token) = tokens.get(at) {
+        token
+    } else {
+        return Err(Error::missing_token(vec![TokenTy::Keyword(keyword)]));
+    };
+
+    if token.eq_keyword(keyword) {
+        Ok(())
+    } else {
+        Err(Error::wrong_token(&token, vec![TokenTy::Keyword(keyword)]))
+    }
+}
+
+pub(super) fn try_eq_symbol(tokens: Tokens, at: usize, symbol: Symbol) -> Result<()> {
+    let token = if let Some(token) = tokens.get(at) {
+        token
+    } else {
+        return Err(Error::missing_token(vec![TokenTy::Symbol(symbol)]));
+    };
+
+    if token.eq_symbol(symbol) {
+        Ok(())
+    } else {
+        Err(Error::wrong_token(&token, vec![TokenTy::Symbol(symbol)]))
     }
 }

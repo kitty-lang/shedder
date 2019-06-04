@@ -8,13 +8,29 @@ mod token;
 
 pub use token::*;
 
-use lex::Lex;
-
 pub fn lex(input: &str) -> IResult<&str, Vec<Token>> {
-    let (input, _) = many0(alt((char(' '), char('\n'))))(input)?;
-    let (input, token) = Token::try_lex(input)?;
+    let mut pos = Position { line: 0, col: 0 };
 
-    if token == Token::EOF {
+    lex_(input, &mut pos)
+}
+
+fn lex_<'i>(input: &'i str, pos: &mut Position) -> IResult<&'i str, Vec<Token<'i>>> {
+    let (input, empty) = many0(alt((char(' '), char('\n'), char('\t'))))(input)?;
+
+    for empty in empty {
+        if empty == ' ' {
+            pos.col += 1;
+        } else if empty == '\n' {
+            pos.line += 1;
+            pos.col = 0;
+        } else if empty == '\t' {
+            pos.col += 4;
+        }
+    }
+
+    let (input, token) = Token::lex(input, pos)?;
+
+    if token.is_eof() {
         return Ok((input, vec![token]));
     }
 

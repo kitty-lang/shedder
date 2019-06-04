@@ -6,8 +6,10 @@ authors = ["Matthieu Le Brazidec <matthieu@lebrazidec.email>"]
 edition = "2018"
 
 [dependencies]
-cranelift        = "0.30"
-cranelift-faerie = "0.30"
-cranelift-module = "0.30"
-nom              = "5.0.0-beta.2"
-target-lexicon   = "0.3"
+fnv            = "1.0"
+nom            = "5.0.0-beta.2"
+structopt      = "0.2"
+
+[dependencies.inkwell]
+git    = "https://github.com/TheDan64/inkwell"
+branch = "llvm7-0"

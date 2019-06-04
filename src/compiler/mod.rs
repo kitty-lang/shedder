@@ -1,48 +1,35 @@
-use std::str::FromStr;
-
-use cranelift::prelude::*;
-use cranelift_faerie::FaerieBackend;
-use cranelift_faerie::FaerieBuilder;
-use cranelift_faerie::FaerieProduct;
-use cranelift_faerie::FaerieTrapCollection;
-use cranelift_module::Module;
-use target_lexicon::triple;
-
 use crate::parser::Entry;
+use crate::ty::RawTy;
+use crate::ty::Ty;
 
 mod compile;
 mod decl;
 mod error;
-mod func;
+mod expr;
+mod stmt;
 
+pub use compile::Compiled;
 pub use error::*;
 
 use compile::Compile;
+use compile::Compiler;
 
-pub fn compile(entry: &Entry) -> Result<FaerieProduct> {
-    let mut flags = settings::builder();
-    flags.set("opt_level", "fastest").unwrap(); // FIXME: on debug only
-    flags.enable("is_pic").unwrap();
+pub fn compile(entry: &Entry) -> Result<Compiled> {
+    let compiler = Compiler::new();
 
-    let isa = isa::lookup(
-        triple!("x86_64-unknown-unknown-elf"), // FIXME
-    )
-    .unwrap()
-    .finish(settings::Flags::new(flags));
+    // --- FIXME ---
+    let puts_ty = RawTy::int32().fn_type(
+        &compiler.ctx,
+        &[Ty::str().raw().to_ptr(&compiler.ctx).into()],
+        false,
+    );
 
-    let builder = FaerieBuilder::new(
-        isa,
-        "empty-main".into(), // FIXME
-        FaerieTrapCollection::Disabled,
-        FaerieBuilder::default_libcall_names(),
-    )
-    .unwrap();
-
-    let mut module = Module::<FaerieBackend>::new(builder);
+    compiler.add_external_function("puts", puts_ty);
+    // --- FIXME ---
 
     for decl in &entry.decls {
-        decl.compile(&mut module)?;
+        decl.compile(&compiler)?;
     }
 
-    Ok(module.finish())
+    Ok(compiler.compiled())
 }
