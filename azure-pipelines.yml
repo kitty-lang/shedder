@@ -1,9 +1,7 @@
 jobs:
   - job: test
-    container: debian-stretch:latest
+    container: rust:latest
     steps:
-      - script: curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
-        displayName: 'Install rust'
       - script: cargo build --all --verbose
         displayName: 'Build (debug)'
       - script: cargo test --all --verbose
