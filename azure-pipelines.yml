@@ -4,8 +4,10 @@ jobs:
     container: rust:latest
     steps:
       - script: |
-          deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main
-          deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          apt-add-repository "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main"
+          apt-get update
+          apt-get install libllvm-7-ocaml-dev libllvm7 llvm-7 llvm-7-dev llvm-7-doc llvm-7-examples llvm-7-runtime
         displayName: 'Install LLVM'
       - script: cargo build --all --verbose
         displayName: 'Build (debug)'
