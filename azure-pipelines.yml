@@ -3,17 +3,18 @@ jobs:
     pool: Default
     container: rust:latest
     steps:
-      - script: |
+      - bash: |
+          sudo apt-get install software-properties-common
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          apt-add-repository "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main"
-          apt-get update
-          apt-get install libllvm-7-ocaml-dev libllvm7 llvm-7 llvm-7-dev llvm-7-doc llvm-7-examples llvm-7-runtime
+          sudo apt-add-repository "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main"
+          sudo apt-get update
+          sudo apt-get install libllvm-7-ocaml-dev libllvm7 llvm-7 llvm-7-dev llvm-7-doc llvm-7-examples llvm-7-runtime
         displayName: 'Install LLVM'
-      - script: cargo build --all --verbose
+      - bash: cargo build --all --verbose
         displayName: 'Build (debug)'
-      - script: cargo test --all --verbose
+      - bash: cargo test --all --verbose
         displayName: 'Test'
-      - script: |
+      - bash: |
           rustup component add clippy
           cargo clippy --all-targets --all-features -- -D warnings
         displayName: 'Clippy'
