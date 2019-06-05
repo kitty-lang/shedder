@@ -1,7 +1,6 @@
 jobs:
   - job: test
-    server: true
-    container: debian-stretch
+    container: debian-stretch:latest
     steps:
       - script: curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
         displayName: 'Install rust'
