@@ -3,6 +3,10 @@ jobs:
     pool: Default
     container: rust:latest
     steps:
+      - script: |
+          deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main
+          deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main
+        displayName: 'Install LLVM'
       - script: cargo build --all --verbose
         displayName: 'Build (debug)'
       - script: cargo test --all --verbose
