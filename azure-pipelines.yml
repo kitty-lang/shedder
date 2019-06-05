@@ -1,7 +1,7 @@
 jobs:
   - job: test
     pool: Default
-    container: rust:latest
+    container: debian-stretch
     steps:
       - bash: |
           apt-get install software-properties-common
@@ -10,6 +10,10 @@ jobs:
           apt-get update
           apt-get install libllvm-7-ocaml-dev libllvm7 llvm-7 llvm-7-dev llvm-7-doc llvm-7-examples llvm-7-runtime
         displayName: 'Install LLVM'
+      - bash: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
+          export PATH=$PATH:$HOME/.cargo/bin
+        displayName: 'Install rust'
       - bash: cargo build --all --verbose
         displayName: 'Build (debug)'
       - bash: cargo test --all --verbose
