@@ -4,11 +4,11 @@ jobs:
     container: rust:latest
     steps:
       - bash: |
-          sudo apt-get install software-properties-common
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo apt-add-repository "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main"
-          sudo apt-get update
-          sudo apt-get install libllvm-7-ocaml-dev libllvm7 llvm-7 llvm-7-dev llvm-7-doc llvm-7-examples llvm-7-runtime
+          apt-get install software-properties-common
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+          apt-add-repository "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-7 main"
+          apt-get update
+          apt-get install libllvm-7-ocaml-dev libllvm7 llvm-7 llvm-7-dev llvm-7-doc llvm-7-examples llvm-7-runtime
         displayName: 'Install LLVM'
       - bash: cargo build --all --verbose
         displayName: 'Build (debug)'
