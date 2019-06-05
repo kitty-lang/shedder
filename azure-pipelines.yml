@@ -1,7 +1,7 @@
 jobs:
   - job: test
     pool: Default
-    container: debian-stretch
+    container: debian:stretch
     steps:
       - bash: |
           apt-get install software-properties-common
