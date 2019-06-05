@@ -1,5 +1,6 @@
 jobs:
   - job: test
+    pool: Default
     container: rust:latest
     steps:
       - script: cargo build --all --verbose
