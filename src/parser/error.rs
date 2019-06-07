@@ -7,7 +7,7 @@ use crate::lexer::TokenTy;
 
 pub type Result<'e, OK> = std::result::Result<OK, Error<'e>>;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Debug)]
 pub struct Error<'e> {
     kind: ErrorKind<'e>,
 }
@@ -59,6 +59,14 @@ impl<'e> Error<'e> {
             }
             (_, _) => Error::multiple(vec![self, other]),
         }
+    }
+}
+
+impl<'e> Eq for Error<'e> {}
+
+impl<'e> PartialEq for Error<'e> {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
     }
 }
 

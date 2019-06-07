@@ -9,11 +9,16 @@ use super::error::*;
 
 pub(super) type Tokens<'t> = &'t [Token<'t>];
 
-pub(super) trait Parse<'t>: Sized {
-    fn parse(tokens: Tokens<'t>) -> Result<(Tokens<'t>, Self)>;
+#[derive(Debug)]
+pub(super) struct State {
+    pub(super) literals: usize,
 }
 
-pub(super) fn try_get_ident<'t>(tokens: Tokens<'t>, at: usize) -> Result<&'t Ident> {
+pub(super) trait Parse<'t>: Sized {
+    fn parse(tokens: Tokens<'t>, state: &mut State) -> Result<'t, (Tokens<'t>, Self)>;
+}
+
+pub(super) fn try_get_ident(tokens: Tokens, at: usize) -> Result<&Ident> {
     let token = if let Some(token) = tokens.get(at) {
         token
     } else {

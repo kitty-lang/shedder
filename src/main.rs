@@ -45,15 +45,17 @@ fn main() {
     }
     println!();
 
+    assert!(!input.is_empty());
+
     println!();
     println!("----- PARSER ----");
     println!();
 
-    let entry = match parse(&tokens) {
+    let main = match parse(&tokens) {
         Ok(entry) => entry,
         Err(err) => panic!("{}", err),
     };
-    println!("{}", entry);
+    //println!("{}", main);
 
     // TODO: verifier
 
@@ -63,7 +65,7 @@ fn main() {
 
     Target::initialize_x86(&InitializationConfig::default());
 
-    let mut compiled = compile(&entry).unwrap();
+    let mut compiled = compile(&main).unwrap();
     println!("{}", compiled);
 
     compiled.create_target_machine();

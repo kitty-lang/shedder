@@ -3,32 +3,41 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 
 use crate::lexer::Ident;
-use crate::lexer::Token;
-use crate::lexer::TokenTy;
+use crate::lexer::Literal as LexLiteral;
 
 #[derive(Debug)]
 pub enum Expr<'e> {
+    Literal(Literal<'e>),
     Func(Func<'e>),
+    Var(&'e Ident),
+}
+
+#[derive(Debug)]
+pub struct Literal<'l> {
+    pub name: Ident,
+    pub lit: &'l LexLiteral<'l>,
 }
 
 #[derive(Debug)]
 pub struct Func<'f> {
     pub name: &'f Ident,
-    pub args: Vec<&'f Token<'f>>,
-}
-
-impl<'e> Expr<'e> {
-    pub(super) fn handled() -> Vec<TokenTy> {
-        vec![TokenTy::Ident]
-    }
+    pub args: Vec<Expr<'f>>,
 }
 
 impl<'e> Display for Expr<'e> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         write!(fmt, "expr::")?;
         match self {
+            Expr::Literal(lit) => write!(fmt, "{}", lit),
             Expr::Func(func) => write!(fmt, "{}", func),
+            Expr::Var(var) => write!(fmt, "{}", var),
         }
+    }
+}
+
+impl<'l> Display for Literal<'l> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        write!(fmt, "{}", self.lit)
     }
 }
 
@@ -40,6 +49,6 @@ impl<'f> Display for Func<'f> {
             write!(fmt, " {} ", arg)?;
         }
 
-        write!(fmt, "]")
+        write!(fmt, "])")
     }
 }

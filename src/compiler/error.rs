@@ -33,6 +33,9 @@ impl Error {
 
 impl Display for Error {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        write!(fmt, "missing target machine")
+        match &self.kind {
+            ErrorKind::LLVM(err) => write!(fmt, "LLVM error: {}", err),
+            ErrorKind::MissingTargetMachine => write!(fmt, "missing target machine"),
+        }
     }
 }

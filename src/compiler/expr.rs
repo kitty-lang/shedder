@@ -1,38 +1,66 @@
 use crate::expr::Expr;
 use crate::expr::Func;
-use crate::lexer::Literal;
-use crate::lexer::TokenVariant;
+use crate::expr::Literal;
+use crate::lexer::Literal as LexLiteral;
 
 use super::compile::Compile;
 use super::compile::Compiler;
+use super::compile::State;
 use super::error::*;
 
-impl<'e> Compile for Expr<'e> {
-    fn compile(&self, compiler: &Compiler) -> Result<()> {
+impl<'e> Compile<'e> for Expr<'e> {
+    fn prepare(&self, compiler: &mut Compiler, state: &mut State<'e>) {
         match self {
-            Expr::Func(func) => func.compile(compiler),
+            Expr::Literal(lit) => lit.prepare(compiler, state),
+            Expr::Func(func) => func.prepare(compiler, state),
+            Expr::Var(_) => (),
+        }
+    }
+
+    fn compile(&self, compiler: &mut Compiler, state: &mut State<'e>) -> Result<()> {
+        match self {
+            Expr::Literal(lit) => lit.compile(compiler, state),
+            Expr::Func(func) => func.compile(compiler, state),
+            Expr::Var(_) => Ok(()),
         }
     }
 }
 
-impl<'f> Compile for Func<'f> {
-    fn compile(&self, compiler: &Compiler) -> Result<()> {
-        // --- FIXME ---
-        assert_eq!(self.name.inner(), "print");
-        assert_eq!(self.args.len(), 1);
+impl<'l> Compile<'l> for Literal<'l> {
+    fn prepare(&self, compiler: &mut Compiler, state: &mut State<'l>) {
+        match self.lit {
+            LexLiteral::String(string) => {
+                compiler.add_global_string(state, self.name.clone(), string);
+            }
+        }
+    }
+}
 
-        let to_print = if let TokenVariant::Literal(Literal::String(string)) = self.args[0].token {
-            compiler.add_global_string_ptr(string, "to_print")
-        } else {
-            panic!();
-        };
+impl<'f> Compile<'f> for Func<'f> {
+    fn prepare(&self, compiler: &mut Compiler, state: &mut State<'f>) {
+        for arg in &self.args {
+            match arg {
+                Expr::Literal(lit) => lit.prepare(compiler, state),
+                Expr::Func(_) => unimplemented!(), // FIXME
+                Expr::Var(_) => (),
+            }
+        }
+    }
 
-        compiler.builder.build_call(
-            compiler.get_function("puts").unwrap(), // FIXME
-            &[to_print.as_pointer_value().into()],
-            "print",
-        );
-        // --- FIXME ---
+    fn compile(&self, compiler: &mut Compiler, state: &mut State<'f>) -> Result<()> {
+        let mut args = vec![];
+
+        for arg in &self.args {
+            match arg {
+                Expr::Literal(Literal { name, .. }) => {
+                    args.push(compiler.get_var(&state, name).unwrap()); // FIXME
+                }
+                Expr::Func(_) => unimplemented!(), // FIXME
+                Expr::Var(var) => args.push(compiler.get_var(&state, var).unwrap()), // FIXME
+            }
+        }
+
+        compiler.call(&state, &self.name, &args);
 
         Ok(())
     }

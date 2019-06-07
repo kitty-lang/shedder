@@ -12,10 +12,14 @@ use nom::IResult;
 
 use super::lex::Lex;
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+#[derive(Hash, Eq, PartialEq, Clone, Debug)]
 pub struct Ident(String);
 
 impl Ident {
+    pub fn new(ident: String) -> Ident {
+        Ident(ident)
+    }
+
     pub fn inner(&self) -> &str {
         &self.0
     }

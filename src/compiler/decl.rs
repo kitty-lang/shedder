@@ -1,35 +1,37 @@
-use crate::decl::Decl;
 use crate::decl::Func;
 use crate::ty::Ty;
 
 use super::compile::Compile;
 use super::compile::Compiler;
+use super::compile::State;
 use super::error::*;
 
-impl<'d> Compile for Decl<'d> {
-    fn compile(&self, compiler: &Compiler) -> Result<()> {
-        match self {
-            Decl::Func(func) => func.compile(compiler),
-        }
-    }
-}
-
-impl<'f> Compile for Func<'f> {
-    fn compile(&self, compiler: &Compiler) -> Result<()> {
+impl<'f> Func<'f> {
+    pub(super) fn declare(&self, compiler: &mut Compiler) {
+        // --- FIXME ---
         let func_ty = Ty::void().raw().fn_type(&compiler.ctx, &[], false);
+        // --- FIXME ---
 
-        let func = compiler.add_function(&self.name.inner(), func_ty);
+        compiler.add_function(self.name.clone(), func_ty);
+    }
 
-        let entry = func.append_basic_block("entry"); // FIXME
-        compiler.builder.position_at_end(&entry);
+    pub(super) fn compile(&self, compiler: &mut Compiler) -> Result<()> {
+        compiler.append_block(&self.name, "entry".into());
+
+        let mut state = State {
+            func: &self.name,
+            block: "entry",
+        };
 
         for stmt in &self.stmts {
-            stmt.compile(compiler)?;
+            stmt.prepare(compiler, &mut state);
         }
 
-        compiler.builder.build_return(None); // FIXME
+        for stmt in &self.stmts {
+            stmt.compile(compiler, &mut state)?;
+        }
 
-        assert!(func.verify(true));
+        compiler.ret(&state, None); // FIXME
 
         Ok(())
     }
