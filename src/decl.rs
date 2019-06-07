@@ -3,8 +3,6 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 
 use crate::lexer::Ident;
-use crate::lexer::Keyword;
-use crate::lexer::TokenTy;
 use crate::stmt::Stmt;
 
 #[derive(Debug)]
@@ -18,12 +16,6 @@ pub struct Func<'f> {
     // TODO: params
     // TODO: ret
     pub stmts: Vec<Stmt<'f>>,
-}
-
-impl<'d> Decl<'d> {
-    pub(super) fn handled() -> Vec<TokenTy> {
-        vec![TokenTy::Keyword(Keyword::Func)]
-    }
 }
 
 impl<'d> Display for Decl<'d> {

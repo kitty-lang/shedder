@@ -41,6 +41,7 @@ pub enum TokenTy {
     #[allow(unused)] // FIXME
     Literal,
     Symbol(Symbol),
+    EOF,
 }
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
@@ -189,6 +190,7 @@ impl Display for TokenTy {
             TokenTy::Ident => write!(fmt, "Ident"),
             TokenTy::Literal => write!(fmt, "Literal"),
             TokenTy::Symbol(symbol) => write!(fmt, "{}", symbol),
+            TokenTy::EOF => write!(fmt, "eof"),
         }
     }
 }

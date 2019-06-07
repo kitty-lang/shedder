@@ -1,5 +1,6 @@
 use crate::decl::Decl;
 use crate::decl::Func;
+use crate::expr::Expr;
 use crate::lexer::Keyword;
 use crate::lexer::Symbol;
 use crate::lexer::TokenTy;
@@ -10,35 +11,31 @@ use super::parse::try_eq_keyword;
 use super::parse::try_eq_symbol;
 use super::parse::try_get_ident;
 use super::parse::Parse;
+use super::parse::State;
 use super::parse::Tokens;
 use super::split;
-use super::Entry;
 
 impl<'d> Decl<'d> {
-    pub(super) fn insert(self, entry: &mut Entry<'d>) {
-        match &self {
-            Decl::Func(Func { name, .. }) => {
-                if let Some(func) = entry.funcs.get_mut(name) {
-                    func.push(entry.decls.len());
-                } else {
-                    entry.funcs.insert(name, vec![entry.decls.len()]);
-                }
+    pub(super) fn handled() -> Vec<TokenTy> {
+        vec![TokenTy::Keyword(Keyword::Func)]
+    }
+}
 
-                entry.decls.push(self);
-            }
-        }
+impl<'e> Expr<'e> {
+    pub(super) fn handled() -> Vec<TokenTy> {
+        vec![TokenTy::Literal]
     }
 }
 
 impl<'d> Parse<'d> for Decl<'d> {
-    fn parse(tokens: Tokens<'d>) -> Result<(Tokens<'d>, Self)> {
+    fn parse(tokens: Tokens<'d>, state: &mut State) -> Result<'d, (Tokens<'d>, Self)> {
         if tokens.is_empty() {
             return Err(Error::missing_token(Self::handled()));
         }
 
         let mut error = Error::multiple(vec![]);
 
-        match Func::parse(tokens) {
+        match Func::parse(tokens, state) {
             Ok((tokens, func)) => return Ok((tokens, Decl::Func(func))),
             Err(err) => {
                 error = error.concat(err);
@@ -50,28 +47,33 @@ impl<'d> Parse<'d> for Decl<'d> {
 }
 
 impl<'f> Parse<'f> for Func<'f> {
-    fn parse(tokens: Tokens<'f>) -> Result<(Tokens<'f>, Self)> {
+    fn parse(tokens: Tokens<'f>, state: &mut State) -> Result<'f, (Tokens<'f>, Self)> {
         try_eq_keyword(tokens, 0, Keyword::Func)?;
 
         let name = try_get_ident(tokens, 1)?;
 
         try_eq_symbol(tokens, 2, Symbol::LeftParen)?;
 
-        // TODO
+        // TODO: args
 
         try_eq_symbol(tokens, 3, Symbol::RightParen)?;
 
-        // TODO
+        // TODO: ret
 
         try_eq_symbol(tokens, 4, Symbol::LeftBracket)?;
 
-        let mut stmts = vec![];
+        let mut func = Func {
+            name,
+            stmts: vec![],
+        };
+
         let mut t = 5;
         loop {
             if t >= tokens.len() {
-                return Err(Error::missing_token(vec![TokenTy::Symbol(
-                    Symbol::RightBracket,
-                )]));
+                let mut handled = Stmt::handled();
+                handled.push(TokenTy::Symbol(Symbol::RightBracket));
+
+                return Err(Error::missing_token(handled));
             }
 
             if tokens[t].eq_symbol(Symbol::RightBracket) {
@@ -79,15 +81,11 @@ impl<'f> Parse<'f> for Func<'f> {
                 break;
             }
 
-            match Stmt::parse(split(&tokens, t)) {
-                Ok((tokens_, stmt)) => {
-                    stmts.push(stmt);
-                    t = tokens.len() - tokens_.len();
-                }
-                Err(err) => return Err(err),
-            }
+            let (tokens_, stmt) = Stmt::parse(split(&tokens, t), state)?;
+            func.stmts.push(stmt);
+            t = tokens.len() - tokens_.len();
         }
 
-        Ok((split(tokens, t), Func { name, stmts }))
+        Ok((split(tokens, t), func))
     }
 }
