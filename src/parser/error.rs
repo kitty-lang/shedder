@@ -8,12 +8,12 @@ use crate::lexer::TokenTy;
 
 pub type Result<'r, OK> = std::result::Result<OK, Error<'r>>;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Debug)]
 pub struct Error<'e> {
     kind: ErrorKind<'e>,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Debug)]
 pub enum ErrorKind<'e> {
     MissingToken {
         handled: Vec<TokenTy>,

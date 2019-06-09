@@ -22,10 +22,12 @@ pub fn lex<'i>(mut input: &'i str) -> Result<Vec<Token<'i>>> {
         } else {
             let (input_, token) = Token::lex(input, &mut pos)?;
             input = input_;
-            tokens.push(token);
 
-            if input.is_empty() {
-                break;
+            if let Some(token) = token {
+                tokens.push(token);
+                if input.is_empty() {
+                    break;
+                }
             }
         }
     }
