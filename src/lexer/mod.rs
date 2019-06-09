@@ -1,47 +1,42 @@
-use nom::branch::alt;
-use nom::character::complete::char;
-use nom::multi::many0;
-use nom::IResult;
-
-mod lex;
+mod error;
 mod token;
 
+pub use error::*;
 pub use token::*;
 
-pub fn lex(input: &str) -> IResult<&str, Vec<Token>> {
-    let mut pos = Position { line: 0, col: 0 };
+pub fn lex<'i>(mut input: &'i str) -> Result<Vec<Token<'i>>> {
+    let mut tokens = vec![];
 
-    lex_(input, &mut pos)
-}
-
-fn lex_<'i>(input: &'i str, pos: &mut Position) -> IResult<&'i str, Vec<Token<'i>>> {
-    let (input, empty) = many0(alt((char(' '), char('\n'), char('\t'))))(input)?;
-
-    for empty in empty {
-        if empty == ' ' {
+    let mut pos = Position::default();
+    loop {
+        if input.starts_with(' ') {
             pos.col += 1;
-        } else if empty == '\n' {
+            input = split(input, 1);
+        } else if input.starts_with('\t') {
+            pos.col += 4;
+            input = split(input, 1);
+        } else if input.starts_with('\n') {
             pos.line += 1;
             pos.col = 0;
-        } else if empty == '\t' {
-            pos.col += 4;
+            input = split(input, 1);
+        } else {
+            let (input_, token) = Token::lex(input, &mut pos)?;
+            input = input_;
+            tokens.push(token);
+
+            if input.is_empty() {
+                break;
+            }
         }
     }
 
-    let (input, token) = Token::lex(input, pos)?;
+    Ok(tokens)
+}
 
-    if token.is_eof() {
-        return Ok((input, vec![token]));
-    }
-
-    let mut tokens = vec![token];
-
-    match lex(input) {
-        Ok((input, mut tokens_)) => {
-            tokens.append(&mut tokens_);
-            Ok((input, tokens))
-        }
-        Err(ref err) if err.is_incomplete() => Ok((input, tokens)),
-        Err(err) => Err(err),
+fn split(data: &str, at: usize) -> &str {
+    if at >= data.len() {
+        ""
+    } else {
+        &data[at..]
     }
 }

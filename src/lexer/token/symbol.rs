@@ -2,12 +2,11 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-use nom::Err as NomErr;
-use nom::IResult;
-use nom::Needed;
-
-use super::lex::is_tag;
-use super::lex::Lex;
+use super::error::*;
+use super::split;
+use super::Position;
+use super::Token;
+use super::TokenVariant;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Symbol {
@@ -20,58 +19,52 @@ pub enum Symbol {
 }
 
 impl Symbol {
-    pub fn len(self) -> usize {
-        match self {
-            Symbol::Equal => 1,
-            Symbol::LeftParen => 1,
-            Symbol::RightParen => 1,
-            Symbol::LeftBracket => 1,
-            Symbol::RightBracket => 1,
-            Symbol::SemiColon => 1,
+    pub(super) fn lex<'i>(input: &'i str, pos: &mut Position) -> Result<(&'i str, Token<'i>)> {
+        if input.starts_with('=') {
+            Ok((split(input, 1), Symbol::Equal.token(pos)))
+        } else if input.starts_with('(') {
+            Ok((split(input, 1), Symbol::LeftParen.token(pos)))
+        } else if input.starts_with(')') {
+            Ok((split(input, 1), Symbol::RightParen.token(pos)))
+        } else if input.starts_with('{') {
+            Ok((split(input, 1), Symbol::LeftBracket.token(pos)))
+        } else if input.starts_with('}') {
+            Ok((split(input, 1), Symbol::RightBracket.token(pos)))
+        } else if input.starts_with(';') {
+            Ok((split(input, 1), Symbol::SemiColon.token(pos)))
+        } else {
+            Err(Error::not_handled())
         }
     }
-}
 
-impl<'l> Lex<'l> for Symbol {
-    fn try_lex(input: &'l str) -> IResult<&'l str, Symbol> {
-        if let (input, true) = is_tag(input, "=")? {
-            return Ok((input, Symbol::Equal));
+    fn token<'t>(self, pos: &mut Position) -> Token<'t> {
+        let tpos = *pos;
+
+        match self {
+            Symbol::Equal => pos.col += 1,
+            Symbol::LeftParen => pos.col += 1,
+            Symbol::RightParen => pos.col += 1,
+            Symbol::LeftBracket => pos.col += 1,
+            Symbol::RightBracket => pos.col += 1,
+            Symbol::SemiColon => pos.col += 1,
         }
 
-        if let (input, true) = is_tag(input, "(")? {
-            return Ok((input, Symbol::LeftParen));
+        Token {
+            token: TokenVariant::Symbol(self),
+            pos: tpos,
         }
-
-        if let (input, true) = is_tag(input, ")")? {
-            return Ok((input, Symbol::RightParen));
-        }
-
-        if let (input, true) = is_tag(input, "{")? {
-            return Ok((input, Symbol::LeftBracket));
-        }
-
-        if let (input, true) = is_tag(input, "}")? {
-            return Ok((input, Symbol::RightBracket));
-        }
-
-        if let (input, true) = is_tag(input, ";")? {
-            return Ok((input, Symbol::SemiColon));
-        }
-
-        Err(NomErr::Incomplete(Needed::Unknown))
     }
 }
 
 impl Display for Symbol {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        write!(fmt, "symbol:")?;
         match self {
-            Symbol::Equal => write!(fmt, "="),
-            Symbol::LeftParen => write!(fmt, "("),
-            Symbol::RightParen => write!(fmt, ")"),
-            Symbol::LeftBracket => write!(fmt, "{{"),
-            Symbol::RightBracket => write!(fmt, "}}"),
-            Symbol::SemiColon => write!(fmt, ";"),
+            Symbol::Equal => write!(fmt, r#"symbol("=")"#),
+            Symbol::LeftParen => write!(fmt, r#"symbol("(")"#),
+            Symbol::RightParen => write!(fmt, r#"symbol(")")"#),
+            Symbol::LeftBracket => write!(fmt, r#"symbol("{{")"#),
+            Symbol::RightBracket => write!(fmt, r#"symbol("}}")"#),
+            Symbol::SemiColon => write!(fmt, r#"symbol(";")"#),
         }
     }
 }

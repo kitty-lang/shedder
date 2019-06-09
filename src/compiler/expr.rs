@@ -9,7 +9,7 @@ use super::compile::State;
 use super::error::*;
 
 impl<'e> Compile<'e> for Expr<'e> {
-    fn prepare(&self, compiler: &mut Compiler, state: &mut State<'e>) {
+    fn prepare(&self, compiler: &mut Compiler<'e>, state: &mut State<'e>) {
         match self {
             Expr::Literal(lit) => lit.prepare(compiler, state),
             Expr::Func(func) => func.prepare(compiler, state),
@@ -17,7 +17,7 @@ impl<'e> Compile<'e> for Expr<'e> {
         }
     }
 
-    fn compile(&self, compiler: &mut Compiler, state: &mut State<'e>) -> Result<()> {
+    fn compile(&self, compiler: &mut Compiler<'e>, state: &mut State<'e>) -> Result<()> {
         match self {
             Expr::Literal(lit) => lit.compile(compiler, state),
             Expr::Func(func) => func.compile(compiler, state),
@@ -27,7 +27,7 @@ impl<'e> Compile<'e> for Expr<'e> {
 }
 
 impl<'l> Compile<'l> for Literal<'l> {
-    fn prepare(&self, compiler: &mut Compiler, state: &mut State<'l>) {
+    fn prepare(&self, compiler: &mut Compiler<'l>, state: &mut State<'l>) {
         match self.lit {
             LexLiteral::String(string) => {
                 compiler.add_global_string(state, self.name.clone(), string);
@@ -37,7 +37,7 @@ impl<'l> Compile<'l> for Literal<'l> {
 }
 
 impl<'f> Compile<'f> for Func<'f> {
-    fn prepare(&self, compiler: &mut Compiler, state: &mut State<'f>) {
+    fn prepare(&self, compiler: &mut Compiler<'f>, state: &mut State<'f>) {
         for arg in &self.args {
             match arg {
                 Expr::Literal(lit) => lit.prepare(compiler, state),
@@ -47,7 +47,7 @@ impl<'f> Compile<'f> for Func<'f> {
         }
     }
 
-    fn compile(&self, compiler: &mut Compiler, state: &mut State<'f>) -> Result<()> {
+    fn compile(&self, compiler: &mut Compiler<'f>, state: &mut State<'f>) -> Result<()> {
         let mut args = vec![];
 
         for arg in &self.args {

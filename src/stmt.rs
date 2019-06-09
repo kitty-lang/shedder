@@ -14,7 +14,7 @@ pub enum Stmt<'s> {
 
 #[derive(Debug)]
 pub struct Let<'l> {
-    pub name: &'l Ident,
+    pub name: Ident<'l>,
     pub value: Expr<'l>,
 }
 

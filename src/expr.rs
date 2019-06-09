@@ -9,18 +9,18 @@ use crate::lexer::Literal as LexLiteral;
 pub enum Expr<'e> {
     Literal(Literal<'e>),
     Func(Func<'e>),
-    Var(&'e Ident),
+    Var(Ident<'e>),
 }
 
 #[derive(Debug)]
 pub struct Literal<'l> {
-    pub name: Ident,
+    pub name: Ident<'l>,
     pub lit: &'l LexLiteral<'l>,
 }
 
 #[derive(Debug)]
 pub struct Func<'f> {
-    pub name: &'f Ident,
+    pub name: Ident<'f>,
     pub args: Vec<Expr<'f>>,
 }
 
@@ -37,13 +37,13 @@ impl<'e> Display for Expr<'e> {
 
 impl<'l> Display for Literal<'l> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        write!(fmt, "{}", self.lit)
+        write!(fmt, "lit(name={}, value={})", self.name.inner(), self.lit)
     }
 }
 
 impl<'f> Display for Func<'f> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        write!(fmt, "func(name={}, args=[", self.name)?;
+        write!(fmt, "func(name={}, args=[", self.name.inner())?;
 
         for arg in &self.args {
             write!(fmt, " {} ", arg)?;

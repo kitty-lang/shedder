@@ -12,7 +12,7 @@ pub enum Decl<'d> {
 
 #[derive(Debug)]
 pub struct Func<'f> {
-    pub name: &'f Ident,
+    pub name: Ident<'f>,
     // TODO: params
     // TODO: ret
     pub stmts: Vec<Stmt<'f>>,

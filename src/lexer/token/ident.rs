@@ -1,55 +1,94 @@
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::hash::Hash;
+use std::hash::Hasher;
 
-use nom::branch::alt;
-use nom::bytes::complete::is_a;
-use nom::character::complete::alpha1;
-use nom::character::complete::alphanumeric1;
-use nom::multi::many0;
-use nom::sequence::pair;
-use nom::IResult;
+use super::error::*;
+use super::split;
+use super::Position;
+use super::Token;
+use super::TokenVariant;
 
-use super::lex::Lex;
+#[derive(Clone, Debug)]
+pub enum Ident<'i> {
+    Ref(&'i str),
+    Owned(String),
+}
 
-#[derive(Hash, Eq, PartialEq, Clone, Debug)]
-pub struct Ident(String);
-
-impl Ident {
-    pub fn new(ident: String) -> Ident {
-        Ident(ident)
+impl<'i> Ident<'i> {
+    pub fn as_ref(&'i self) -> Self {
+        match self {
+            Ident::Ref(ident) => Ident::Ref(ident),
+            Ident::Owned(ident) => Ident::Ref(ident),
+        }
     }
 
     pub fn inner(&self) -> &str {
-        &self.0
+        match self {
+            Ident::Ref(ident) => ident,
+            Ident::Owned(ident) => ident,
+        }
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        match self {
+            Ident::Ref(ident) => ident.len(),
+            Ident::Owned(ident) => ident.len(),
+        }
     }
-}
 
-impl<'l> Lex<'l> for Ident {
-    fn try_lex(input: &'l str) -> IResult<&'l str, Ident> {
-        match pair(
-            alt((alpha1, is_a("_"))),
-            many0(alt((alphanumeric1, is_a("_")))),
-        )(input)
-        {
-            Ok((input, (first, next))) => {
-                let mut ident = first.to_string();
-                for next in next {
-                    ident.push_str(next);
-                }
-                Ok((input, Ident(ident)))
+    pub(super) fn lex(input: &'i str, pos: &mut Position) -> Result<(&'i str, Token<'i>)> {
+        let mut i = 0;
+        for chr in input.chars() {
+            if chr.is_alphabetic() || chr == '_' || (chr.is_alphanumeric() && i > 0) {
+                i += 1;
+            } else {
+                break;
             }
-            Err(err) => Err(err),
+        }
+
+        if i > 0 {
+            Ok((
+                split(input, i),
+                Ident::Ref(input.get(0..i).unwrap()).token(pos),
+            ))
+        } else {
+            Err(Error::not_handled())
+        }
+    }
+
+    fn token(self, pos: &mut Position) -> Token<'i> {
+        let tpos = *pos;
+
+        pos.col += self.len();
+
+        Token {
+            token: TokenVariant::Ident(self),
+            pos: tpos,
         }
     }
 }
 
-impl Display for Ident {
+impl<'i> Hash for Ident<'i> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inner().hash(state)
+    }
+}
+
+impl<'i> Eq for Ident<'i> {}
+
+impl<'i> PartialEq for Ident<'i> {
+    fn eq(&self, other: &Ident<'i>) -> bool {
+        self.inner() == other.inner()
+    }
+}
+
+impl<'i> Display for Ident<'i> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        write!(fmt, "ident:{:?}", self.inner())
+        match self {
+            Ident::Ref(ident) => write!(fmt, "ident({})", ident),
+            Ident::Owned(ident) => write!(fmt, "ident({})", ident),
+        }
     }
 }
