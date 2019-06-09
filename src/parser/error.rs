@@ -2,12 +2,13 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use crate::lexer::Position;
 use crate::lexer::Token;
 use crate::lexer::TokenTy;
 
-pub type Result<'e, OK> = std::result::Result<OK, Error<'e>>;
+pub type Result<'r, OK> = std::result::Result<OK, Error<'r>>;
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct Error<'e> {
     kind: ErrorKind<'e>,
 }
@@ -16,6 +17,7 @@ pub struct Error<'e> {
 pub enum ErrorKind<'e> {
     MissingToken {
         handled: Vec<TokenTy>,
+        after: Option<Position>,
     },
     WrongToken {
         token: &'e Token<'e>,
@@ -25,9 +27,9 @@ pub enum ErrorKind<'e> {
 }
 
 impl<'e> Error<'e> {
-    pub(super) fn missing_token(handled: Vec<TokenTy>) -> Self {
+    pub(super) fn missing_token(handled: Vec<TokenTy>, after: Option<Position>) -> Self {
         Error {
-            kind: ErrorKind::MissingToken { handled },
+            kind: ErrorKind::MissingToken { handled, after },
         }
     }
 
@@ -37,13 +39,23 @@ impl<'e> Error<'e> {
         }
     }
 
-    pub(super) fn multiple(errors: Vec<Self>) -> Self {
+    pub(super) fn multiple(errors: Vec<Error<'e>>) -> Self {
         Error {
             kind: ErrorKind::Multiple(errors),
         }
     }
 
-    pub(super) fn concat(mut self, mut other: Self) -> Self {
+    pub(super) fn max_after(&mut self, after: Option<Position>) {
+        if let ErrorKind::MissingToken { after: after_, .. } = &mut self.kind {
+            match (after_, after) {
+                (Some(after_), Some(after)) => *after_ = std::cmp::max(*after_, after),
+                (after_, Some(after)) => *after_ = Some(after),
+                _ => (),
+            }
+        }
+    }
+
+    pub(super) fn concat(mut self, mut other: Error<'e>) -> Self {
         match (&mut self.kind, &mut other.kind) {
             (ErrorKind::Multiple(left), ErrorKind::Multiple(right)) => {
                 left.append(right);
@@ -62,25 +74,23 @@ impl<'e> Error<'e> {
     }
 }
 
-impl<'e> Eq for Error<'e> {}
-
-impl<'e> PartialEq for Error<'e> {
-    fn eq(&self, other: &Self) -> bool {
-        self.kind == other.kind
-    }
-}
-
 impl<'e> Display for Error<'e> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         match &self.kind {
-            ErrorKind::MissingToken { handled } => {
+            ErrorKind::MissingToken { handled, after } => {
                 write!(fmt, "missing token( handled:")?;
 
                 for handled in handled {
                     write!(fmt, r#" "{}" "#, handled)?;
                 }
 
-                write!(fmt, " )")
+                write!(fmt, " )")?;
+
+                if let Some(after) = after {
+                    write!(fmt, " after {}", after)?;
+                }
+
+                Ok(())
             }
             ErrorKind::WrongToken { token, handled } => {
                 write!(fmt, r#"wrong token( handled:"#)?;
@@ -96,7 +106,7 @@ impl<'e> Display for Error<'e> {
                     write!(fmt, r#"{}"#, handled)?;
                 }
 
-                write!(fmt, " ):{}", token)
+                write!(fmt, " ):{} at {}", token, token.pos)
             }
             ErrorKind::Multiple(errors) => {
                 write!(fmt, "multiple errors possible: [ ")?;

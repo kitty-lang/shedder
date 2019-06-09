@@ -7,7 +7,6 @@ edition = "2018"
 
 [dependencies]
 fnv       = "1.0"
-nom       = "5.0.0-beta.2"
 structopt = "0.2"
 
 [dependencies.inkwell]

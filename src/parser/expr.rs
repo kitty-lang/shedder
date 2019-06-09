@@ -1,61 +1,79 @@
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+
 use crate::expr::Expr;
 use crate::expr::Func;
 use crate::expr::Literal;
 use crate::lexer::Ident;
 use crate::lexer::Symbol;
+use crate::lexer::Token;
 use crate::lexer::TokenTy;
 use crate::lexer::TokenVariant;
 
-use super::error::*;
-use super::parse::try_eq_symbol;
-use super::parse::try_get_ident;
-use super::parse::Parse;
-use super::parse::State;
-use super::parse::Tokens;
 use super::split;
+use super::try_eq_symbol;
+use super::try_get_ident;
 
-impl<'e> Parse<'e> for Expr<'e> {
-    fn parse(tokens: Tokens<'e>, state: &mut State) -> Result<'e, (Tokens<'e>, Self)> {
+use super::error::*;
+
+static LITERALS: AtomicUsize = AtomicUsize::new(0);
+
+impl<'e> Expr<'e> {
+    pub(super) fn handled() -> Vec<TokenTy> {
+        let mut handled = vec![];
+        handled.append(&mut Func::handled());
+        handled.push(TokenTy::Literal);
+        // handled.push(TokenTy::Ident); // NOTE: already in `Func::handled`
+        handled
+    }
+
+    pub(super) fn parse(tokens: &'e [Token<'e>]) -> Result<(usize, Self)> {
         if tokens.is_empty() {
-            return Err(Error::missing_token(Self::handled()));
+            return Err(Error::missing_token(Self::handled(), None));
         }
 
         let mut error = Error::multiple(vec![]);
 
         if let TokenVariant::Literal(lit) = &tokens[0].token {
-            let name = Ident::new(format!("lit{}", state.literals));
-            state.literals += 1;
-
-            return Ok((split(tokens, 1), Expr::Literal(Literal { name, lit })));
+            return Ok((
+                1,
+                Expr::Literal(Literal {
+                    name: Ident::Owned(format!("lit{}", LITERALS.fetch_add(1, Ordering::SeqCst))),
+                    lit,
+                }),
+            ));
         }
 
-        match Func::parse(tokens, state) {
-            Ok((tokens, func)) => return Ok((tokens, Expr::Func(func))),
-            Err(err) => {
-                error = error.concat(err);
+        match Func::parse(tokens) {
+            Ok((t, func)) => return Ok((t, Expr::Func(func))),
+            Err(mut err) => {
+                error = error.concat({
+                    err.max_after(tokens.get(1).map(|token| token.pos));
+                    err
+                })
             }
         }
 
         if let TokenVariant::Ident(var) = &tokens[0].token {
-            return Ok((split(tokens, 1), Expr::Var(var)));
+            return Ok((1, Expr::Var(var.clone())));
         }
 
         Err(error)
     }
 }
 
-impl<'f> Parse<'f> for Func<'f> {
-    fn parse(tokens: Tokens<'f>, state: &mut State) -> Result<'f, (Tokens<'f>, Self)> {
-        let name = try_get_ident(tokens, 0)?;
+impl<'f> Func<'f> {
+    fn handled() -> Vec<TokenTy> {
+        vec![TokenTy::Ident]
+    }
 
-        try_eq_symbol(tokens, 1, Symbol::LeftParen)?;
+    fn parse(tokens: &'f [Token<'f>]) -> Result<(usize, Self)> {
+        let name = try_get_ident(tokens, 0)?.clone();
 
-        if tokens.len() < 3 {
-            let mut handled = Expr::handled();
-            handled.push(TokenTy::Symbol(Symbol::RightParen));
-
-            return Err(Error::missing_token(handled));
-        }
+        try_eq_symbol(tokens, 1, Symbol::LeftParen).map_err(|mut err| {
+            err.max_after(tokens.get(0).map(|token| token.pos));
+            err
+        })?;
 
         let mut func = Func { name, args: vec![] };
 
@@ -64,8 +82,7 @@ impl<'f> Parse<'f> for Func<'f> {
             if t >= tokens.len() {
                 let mut handled = Expr::handled();
                 handled.push(TokenTy::Symbol(Symbol::RightParen));
-
-                return Err(Error::missing_token(handled));
+                return Err(Error::missing_token(handled, Some(tokens[t - 1].pos)));
             }
 
             if tokens[t].eq_symbol(Symbol::RightParen) {
@@ -73,14 +90,17 @@ impl<'f> Parse<'f> for Func<'f> {
                 break;
             }
 
-            let (tokens_, expr) = Expr::parse(split(&tokens, t), state)?;
+            let (t_, expr) = Expr::parse(split(tokens, t))?;
+
             func.args.push(expr);
-            t = tokens.len() - tokens_.len();
+            t += t_;
         }
 
-        try_eq_symbol(tokens, t, Symbol::SemiColon)?;
-        t += 1;
+        try_eq_symbol(tokens, t, Symbol::SemiColon).map_err(|mut err| {
+            err.max_after(tokens.get(t - 1).map(|token| token.pos));
+            err
+        })?;
 
-        Ok((split(tokens, t), func))
+        Ok((t + 1, func))
     }
 }

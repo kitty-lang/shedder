@@ -8,14 +8,14 @@ use super::compile::State;
 use super::error::*;
 
 impl<'s> Compile<'s> for Stmt<'s> {
-    fn prepare(&self, compiler: &mut Compiler, state: &mut State<'s>) {
+    fn prepare(&self, compiler: &mut Compiler<'s>, state: &mut State<'s>) {
         match self {
             Stmt::Expr(expr) => expr.prepare(compiler, state),
             Stmt::Let(let_) => let_.prepare(compiler, state),
         }
     }
 
-    fn compile(&self, compiler: &mut Compiler, state: &mut State<'s>) -> Result<()> {
+    fn compile(&self, compiler: &mut Compiler<'s>, state: &mut State<'s>) -> Result<()> {
         match self {
             Stmt::Expr(expr) => expr.compile(compiler, state),
             Stmt::Let(let_) => let_.compile(compiler, state),
@@ -24,7 +24,7 @@ impl<'s> Compile<'s> for Stmt<'s> {
 }
 
 impl<'l> Compile<'l> for Let<'l> {
-    fn prepare(&self, compiler: &mut Compiler, state: &mut State<'l>) {
+    fn prepare(&self, compiler: &mut Compiler<'l>, state: &mut State<'l>) {
         match &self.value {
             Expr::Literal(lit) => {
                 compiler.alias(state, self.name.clone(), lit.name.clone());
@@ -34,7 +34,7 @@ impl<'l> Compile<'l> for Let<'l> {
         }
     }
 
-    fn compile(&self, compiler: &mut Compiler, state: &mut State<'l>) -> Result<()> {
+    fn compile(&self, compiler: &mut Compiler<'l>, state: &mut State<'l>) -> Result<()> {
         match &self.value {
             Expr::Literal(lit) => lit.compile(compiler, state),
             _ => unimplemented!(), // FIXME

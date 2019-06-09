@@ -2,12 +2,11 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-use nom::Err as NomErr;
-use nom::IResult;
-use nom::Needed;
-
-use super::lex::is_tag;
-use super::lex::Lex;
+use super::error::*;
+use super::split;
+use super::Position;
+use super::Token;
+use super::TokenVariant;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Keyword {
@@ -16,34 +15,36 @@ pub enum Keyword {
 }
 
 impl Keyword {
-    pub fn len(self) -> usize {
-        match self {
-            Keyword::Func => 4,
-            Keyword::Let => 3,
+    pub(super) fn lex<'i>(input: &'i str, pos: &mut Position) -> Result<(&'i str, Token<'i>)> {
+        if input.starts_with("func") {
+            Ok((split(input, 4), Keyword::Func.token(pos)))
+        } else if input.starts_with("let") {
+            Ok((split(input, 3), Keyword::Let.token(pos)))
+        } else {
+            Err(Error::not_handled())
         }
     }
-}
 
-impl<'l> Lex<'l> for Keyword {
-    fn try_lex(input: &'l str) -> IResult<&'l str, Keyword> {
-        if let (input, true) = is_tag(input, "func")? {
-            return Ok((input, Keyword::Func));
+    fn token<'t>(self, pos: &mut Position) -> Token<'t> {
+        let tpos = *pos;
+
+        match self {
+            Keyword::Func => pos.col += 4,
+            Keyword::Let => pos.col += 3,
         }
 
-        if let (input, true) = is_tag(input, "let")? {
-            return Ok((input, Keyword::Let));
+        Token {
+            token: TokenVariant::Keyword(self),
+            pos: tpos,
         }
-
-        Err(NomErr::Incomplete(Needed::Unknown))
     }
 }
 
 impl Display for Keyword {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        write!(fmt, "keyword:")?;
         match self {
-            Keyword::Func => write!(fmt, "func"),
-            Keyword::Let => write!(fmt, "let"),
+            Keyword::Func => write!(fmt, "keyword::func"),
+            Keyword::Let => write!(fmt, "keyword::let"),
         }
     }
 }

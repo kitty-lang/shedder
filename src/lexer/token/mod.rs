@@ -1,13 +1,11 @@
+use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-use nom::Err as NomErr;
-use nom::IResult;
-use nom::Needed;
-
-use super::lex;
-use super::lex::Lex;
+use super::error;
+use super::error::*;
+use super::split;
 
 mod ident;
 mod keyword;
@@ -28,72 +26,56 @@ pub struct Token<'t> {
 #[derive(Eq, PartialEq, Debug)]
 pub enum TokenVariant<'t> {
     Keyword(Keyword),
-    Ident(Ident),
+    Ident(Ident<'t>),
     Literal(Literal<'t>),
     Symbol(Symbol),
     EOF,
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
-pub enum TokenTy {
-    Keyword(Keyword),
-    Ident,
-    #[allow(unused)] // FIXME
-    Literal,
-    Symbol(Symbol),
-    EOF,
-}
-
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Default, Eq, PartialEq, Copy, Clone, Debug)]
 pub struct Position {
     pub line: usize,
     pub col: usize,
 }
 
+#[derive(Eq, PartialEq, Debug)]
+pub enum TokenTy {
+    Keyword(Keyword),
+    Ident,
+    Literal,
+    Symbol(Symbol),
+    EOF,
+}
+
 impl<'t> Token<'t> {
-    fn keyword(keyword: Keyword, pos: Position) -> Self {
-        Token {
-            token: TokenVariant::Keyword(keyword),
-            pos,
+    pub(super) fn lex(input: &'t str, pos: &mut Position) -> Result<(&'t str, Token<'t>)> {
+        if input.is_empty() {
+            return Ok((
+                input,
+                Token {
+                    token: TokenVariant::EOF,
+                    pos: *pos,
+                },
+            ));
         }
-    }
 
-    fn ident(ident: Ident, pos: Position) -> Self {
-        Token {
-            token: TokenVariant::Ident(ident),
-            pos,
+        if let Ok((input, token)) = Keyword::lex(input, pos) {
+            return Ok((input, token));
         }
-    }
 
-    fn literal(lit: Literal<'t>, pos: Position) -> Self {
-        Token {
-            token: TokenVariant::Literal(lit),
-            pos,
+        if let Ok((input, token)) = Ident::lex(input, pos) {
+            return Ok((input, token));
         }
-    }
 
-    fn symbol(symbol: Symbol, pos: Position) -> Self {
-        Token {
-            token: TokenVariant::Symbol(symbol),
-            pos,
+        if let Ok((input, token)) = Literal::lex(input, pos) {
+            return Ok((input, token));
         }
-    }
 
-    fn eof(pos: Position) -> Self {
-        Token {
-            token: TokenVariant::EOF,
-            pos,
+        if let Ok((input, token)) = Symbol::lex(input, pos) {
+            return Ok((input, token));
         }
-    }
 
-    pub fn len(&self) -> usize {
-        match &self.token {
-            TokenVariant::Keyword(keyword) => keyword.len(),
-            TokenVariant::Ident(ident) => ident.len(),
-            TokenVariant::Literal(lit) => lit.len(),
-            TokenVariant::Symbol(symbol) => symbol.len(),
-            TokenVariant::EOF => 0,
-        }
+        Err(Error::not_handled())
     }
 
     pub fn is_eof(&self) -> bool {
@@ -115,53 +97,28 @@ impl<'t> Token<'t> {
             false
         }
     }
+}
 
-    pub(super) fn lex(input: &'t str, pos: &mut Position) -> IResult<&'t str, Self> {
-        if input.is_empty() {
-            return Ok((input, Token::eof(*pos)));
+impl Ord for Position {
+    fn cmp(&self, other: &Position) -> Ordering {
+        match (self.line.cmp(&other.line), self.col.cmp(&other.col)) {
+            (Ordering::Equal, cmp) => cmp,
+            (cmp, _) => cmp,
         }
+    }
+}
 
-        match Symbol::try_lex(input) {
-            Ok((input, symbol)) => {
-                let token = Token::symbol(symbol, *pos);
-                pos.col += token.len();
-                return Ok((input, token));
-            }
-            Err(NomErr::Failure(err)) => return Err(NomErr::Failure(err)),
-            _ => (),
+impl PartialOrd for Position {
+    fn partial_cmp(&self, other: &Position) -> Option<Ordering> {
+        match (
+            self.line.partial_cmp(&other.line),
+            self.col.partial_cmp(&other.col),
+        ) {
+            (Some(Ordering::Equal), cmp) => cmp,
+            (Some(cmp), _) => Some(cmp),
+            (_, Some(cmp)) => Some(cmp),
+            _ => None,
         }
-
-        match Keyword::try_lex(input) {
-            Ok((input, keyword)) => {
-                let token = Token::keyword(keyword, *pos);
-                pos.col += token.len();
-                return Ok((input, token));
-            }
-            Err(NomErr::Failure(err)) => return Err(NomErr::Failure(err)),
-            _ => (),
-        }
-
-        match Ident::try_lex(input) {
-            Ok((input, ident)) => {
-                let token = Token::ident(ident, *pos);
-                pos.col += token.len();
-                return Ok((input, token));
-            }
-            Err(NomErr::Failure(err)) => return Err(NomErr::Failure(err)),
-            _ => (),
-        }
-
-        match Literal::try_lex(input) {
-            Ok((input, literal)) => {
-                let token = Token::literal(literal, *pos);
-                pos.col += token.len();
-                return Ok((input, token));
-            }
-            Err(NomErr::Failure(err)) => return Err(NomErr::Failure(err)),
-            _ => (),
-        }
-
-        Err(NomErr::Incomplete(Needed::Unknown))
     }
 }
 
@@ -183,21 +140,20 @@ impl<'t> Display for TokenVariant<'t> {
     }
 }
 
+impl Display for Position {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        write!(fmt, "({},{})", self.line, self.col)
+    }
+}
+
 impl Display for TokenTy {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         match self {
             TokenTy::Keyword(keyword) => write!(fmt, "{}", keyword),
-            TokenTy::Ident => write!(fmt, "Ident"),
-            TokenTy::Literal => write!(fmt, "Literal"),
+            TokenTy::Ident => write!(fmt, "ident"),
+            TokenTy::Literal => write!(fmt, "lit"),
             TokenTy::Symbol(symbol) => write!(fmt, "{}", symbol),
             TokenTy::EOF => write!(fmt, "eof"),
         }
-    }
-}
-
-impl Display for Position {
-    fn fmt(&self, _: &mut Formatter) -> fmt::Result {
-        // write!(fmt, "({},{})", self.line, self.col)
-        Ok(()) // FIXME: optional
     }
 }

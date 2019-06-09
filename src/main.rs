@@ -8,7 +8,6 @@ use structopt::StructOpt;
 pub mod decl;
 pub mod expr;
 pub mod stmt;
-pub mod ty;
 
 mod cli;
 mod compiler;
@@ -33,10 +32,7 @@ fn main() {
     println!("----- LEXER -----");
     println!();
 
-    let (input, tokens) = lex(&input).unwrap();
-
-    println!("rest:");
-    println!("  {:?}", input);
+    let tokens = lex(&input).unwrap();
 
     println!("tokens:");
     print!("  ");
@@ -55,7 +51,18 @@ fn main() {
         Ok(entry) => entry,
         Err(err) => panic!("{}", err),
     };
-    //println!("{}", main);
+
+    println!("main:");
+    println!("- {}", main);
+    println!("- funcs:");
+    for (name, func) in &main.funcs {
+        println!("  - {}:", name.inner());
+        println!("    - {}", func);
+        println!("    - stmts:");
+        for stmt in &func.stmts {
+            println!("      - {}", stmt);
+        }
+    }
 
     // TODO: verifier
 
