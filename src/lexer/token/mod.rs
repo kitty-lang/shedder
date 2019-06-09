@@ -7,6 +7,7 @@ use super::error;
 use super::error::*;
 use super::split;
 
+mod comment;
 mod ident;
 mod keyword;
 mod literal;
@@ -17,13 +18,15 @@ pub use keyword::Keyword;
 pub use literal::Literal;
 pub use symbol::Symbol;
 
-#[derive(Eq, PartialEq, Debug)]
+use comment::Comment;
+
+#[derive(Debug)]
 pub struct Token<'t> {
     pub token: TokenVariant<'t>,
     pub pos: Position,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Debug)]
 pub enum TokenVariant<'t> {
     Keyword(Keyword),
     Ident(Ident<'t>),
@@ -48,38 +51,46 @@ pub enum TokenTy {
 }
 
 impl<'t> Token<'t> {
-    pub(super) fn lex(input: &'t str, pos: &mut Position) -> Result<(&'t str, Token<'t>)> {
+    pub(super) fn lex(input: &'t str, pos: &mut Position) -> Result<(&'t str, Option<Token<'t>>)> {
         if input.is_empty() {
             return Ok((
                 input,
-                Token {
+                Some(Token {
                     token: TokenVariant::EOF,
                     pos: *pos,
-                },
+                }),
             ));
         }
 
+        if let Ok(input) = Comment::lex(input, pos) {
+            return Ok((input, None));
+        }
+
         if let Ok((input, token)) = Keyword::lex(input, pos) {
-            return Ok((input, token));
+            return Ok((input, Some(token)));
         }
 
         if let Ok((input, token)) = Ident::lex(input, pos) {
-            return Ok((input, token));
+            return Ok((input, Some(token)));
         }
 
         if let Ok((input, token)) = Literal::lex(input, pos) {
-            return Ok((input, token));
+            return Ok((input, Some(token)));
         }
 
         if let Ok((input, token)) = Symbol::lex(input, pos) {
-            return Ok((input, token));
+            return Ok((input, Some(token)));
         }
 
         Err(Error::not_handled())
     }
 
     pub fn is_eof(&self) -> bool {
-        self.token == TokenVariant::EOF
+        if let TokenVariant::EOF = self.token {
+            true
+        } else {
+            false
+        }
     }
 
     pub fn eq_keyword(&self, keyword: Keyword) -> bool {
