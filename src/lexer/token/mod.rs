@@ -76,7 +76,7 @@ impl<'t> Token<'t> {
         }
 
         if let Ok((input, token)) = Ty::lex(input, pos) {
-            return Ok((input, token));
+            return Ok((input, Some(token)));
         }
 
         if let Ok((input, token)) = Ident::lex(input, pos) {
