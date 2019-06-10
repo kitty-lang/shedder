@@ -12,30 +12,33 @@ use super::TokenVariant;
 pub enum Keyword {
     Func,
     Let,
+    Return,
 }
 
 impl Keyword {
     pub(super) fn lex<'i>(input: &'i str, pos: &mut Position) -> Result<(&'i str, Token<'i>)> {
+        let tpos = *pos;
         if input.starts_with("func") {
-            Ok((split(input, 4), Keyword::Func.token(pos)))
+            pos.col += 4;
+
+            Ok((split(input, 4), Keyword::Func.token(tpos)))
         } else if input.starts_with("let") {
-            Ok((split(input, 3), Keyword::Let.token(pos)))
+            pos.col += 3;
+
+            Ok((split(input, 3), Keyword::Let.token(tpos)))
+        } else if input.starts_with("return") {
+            pos.col += 6;
+
+            Ok((split(input, 6), Keyword::Return.token(tpos)))
         } else {
-            Err(Error::not_handled())
+            Err(Error::not_handled(tpos))
         }
     }
 
-    fn token<'t>(self, pos: &mut Position) -> Token<'t> {
-        let tpos = *pos;
-
-        match self {
-            Keyword::Func => pos.col += 4,
-            Keyword::Let => pos.col += 3,
-        }
-
+    fn token<'t>(self, pos: Position) -> Token<'t> {
         Token {
             token: TokenVariant::Keyword(self),
-            pos: tpos,
+            pos,
         }
     }
 }
@@ -45,6 +48,7 @@ impl Display for Keyword {
         match self {
             Keyword::Func => write!(fmt, "keyword::func"),
             Keyword::Let => write!(fmt, "keyword::let"),
+            Keyword::Return => write!(fmt, "keyword::return"),
         }
     }
 }

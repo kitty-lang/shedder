@@ -45,6 +45,14 @@ impl<'e> Error<'e> {
         }
     }
 
+    pub(super) fn is_wrong_token(&self) -> bool {
+        if let ErrorKind::WrongToken { .. } = self.kind {
+            true
+        } else {
+            false
+        }
+    }
+
     pub(super) fn max_after(&mut self, after: Option<Position>) {
         if let ErrorKind::MissingToken { after: after_, .. } = &mut self.kind {
             match (after_, after) {
@@ -106,7 +114,7 @@ impl<'e> Display for Error<'e> {
                     write!(fmt, r#"{}"#, handled)?;
                 }
 
-                write!(fmt, " ):{} at {}", token, token.pos)
+                write!(fmt, " ):{}", token)
             }
             ErrorKind::Multiple(errors) => {
                 write!(fmt, "multiple errors possible: [ ")?;

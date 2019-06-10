@@ -5,12 +5,14 @@ use crate::lexer::Symbol;
 use crate::lexer::Token;
 use crate::lexer::TokenTy;
 use crate::stmt::Stmt;
+use crate::ty::Ty;
 
 use super::error::*;
 use super::split;
 use super::try_eq_keyword;
 use super::try_eq_symbol;
 use super::try_get_ident;
+use super::try_get_ty;
 
 impl<'d> Decl<'d> {
     pub(super) fn handled() -> Vec<TokenTy> {
@@ -43,38 +45,59 @@ impl<'f> Func<'f> {
     fn parse(tokens: &'f [Token<'f>]) -> Result<(usize, Self)> {
         try_eq_keyword(tokens, 0, Keyword::Func)?;
 
-        let name = try_get_ident(tokens, 1)
+        let mut t = 1;
+        let name = try_get_ident(tokens, t)
             .map_err(|mut err| {
-                err.max_after(tokens.get(0).map(|token| token.pos));
+                err.max_after(tokens.get(t - 1).map(|token| token.pos));
                 err
             })?
             .clone();
 
-        try_eq_symbol(tokens, 2, Symbol::LeftParen).map_err(|mut err| {
-            err.max_after(tokens.get(1).map(|token| token.pos));
+        t += 1;
+        try_eq_symbol(tokens, t, Symbol::LeftParen).map_err(|mut err| {
+            err.max_after(tokens.get(t - 1).map(|token| token.pos));
             err
         })?;
 
         // TODO: args
 
-        try_eq_symbol(tokens, 3, Symbol::RightParen).map_err(|mut err| {
-            err.max_after(tokens.get(2).map(|token| token.pos));
+        t += 1;
+        try_eq_symbol(tokens, t, Symbol::RightParen).map_err(|mut err| {
+            err.max_after(tokens.get(t - 1).map(|token| token.pos));
             err
         })?;
 
-        // TODO: ret
+        t += 1;
+        let ty = match try_eq_symbol(tokens, t, Symbol::Colon) {
+            Ok(()) => {
+                t += 1;
+                let ty = Some(try_get_ty(tokens, t).map_err(|mut err| {
+                    err.max_after(tokens.get(t - 1).map(|token| token.pos));
+                    err
+                })?);
 
-        try_eq_symbol(tokens, 4, Symbol::LeftBracket).map_err(|mut err| {
-            err.max_after(tokens.get(3).map(|token| token.pos));
+                t += 1;
+                ty
+            }
+            Err(ref err) if err.is_wrong_token() => None,
+            Err(mut err) => {
+                err.max_after(tokens.get(t - 1).map(|token| token.pos));
+                return Err(err);
+            }
+        };
+
+        try_eq_symbol(tokens, t, Symbol::LeftBracket).map_err(|mut err| {
+            err.max_after(tokens.get(t - 1).map(|token| token.pos));
             err
         })?;
 
         let mut func = Func {
             name,
+            ret: ty.unwrap_or(Ty::Void),
             stmts: vec![],
         };
 
-        let mut t = 5;
+        t += 1;
         loop {
             if t >= tokens.len() {
                 let mut handled = Stmt::handled();

@@ -5,14 +5,14 @@ use inkwell::targets::InitializationConfig;
 use inkwell::targets::Target;
 use structopt::StructOpt;
 
-pub mod decl;
-pub mod expr;
-pub mod stmt;
-
 mod cli;
 mod compiler;
+mod decl;
+mod expr;
 mod lexer;
 mod parser;
+mod stmt;
+mod ty;
 
 use cli::Opt;
 use compiler::compile;

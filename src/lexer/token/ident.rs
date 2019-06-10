@@ -31,13 +31,6 @@ impl<'i> Ident<'i> {
         }
     }
 
-    pub fn len(&self) -> usize {
-        match self {
-            Ident::Ref(ident) => ident.len(),
-            Ident::Owned(ident) => ident.len(),
-        }
-    }
-
     pub(super) fn lex(input: &'i str, pos: &mut Position) -> Result<(&'i str, Token<'i>)> {
         let mut i = 0;
         for chr in input.chars() {
@@ -49,23 +42,22 @@ impl<'i> Ident<'i> {
         }
 
         if i > 0 {
+            let tpos = *pos;
+            pos.col += i;
+
             Ok((
                 split(input, i),
-                Ident::Ref(input.get(0..i).unwrap()).token(pos),
+                Ident::Ref(input.get(0..i).unwrap()).token(tpos),
             ))
         } else {
-            Err(Error::not_handled())
+            Err(Error::not_handled(*pos))
         }
     }
 
-    fn token(self, pos: &mut Position) -> Token<'i> {
-        let tpos = *pos;
-
-        pos.col += self.len();
-
+    fn token(self, pos: Position) -> Token<'i> {
         Token {
             token: TokenVariant::Ident(self),
-            pos: tpos,
+            pos,
         }
     }
 }

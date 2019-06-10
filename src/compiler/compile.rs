@@ -24,6 +24,7 @@ use inkwell::AddressSpace;
 use inkwell::OptimizationLevel;
 
 use crate::lexer::Ident;
+use crate::ty::Ty;
 
 use super::error::*;
 
@@ -61,10 +62,9 @@ enum Var<'v> {
 }
 
 #[derive(Debug)]
-pub(super) enum Ty<'t> {
-    Str,
-    Void,
-    FunctionType { args: &'t [Ty<'t>], ret: &'t Ty<'t> },
+pub(super) enum CompilerTy<'t> {
+    Ty(Ty<'t>),
+    FunctionType { args: &'t [CompilerTy<'t>], ret: &'t CompilerTy<'t> },
 }
 
 #[derive(Debug)]
@@ -97,7 +97,7 @@ impl<'c> Compiler<'c> {
         }
     }
 
-    pub(super) fn add_function(&mut self, name: Ident<'c>, ty: Ty) {
+    pub(super) fn add_function(&mut self, name: Ident<'c>, ty: CompilerTy) {
         let func = self
             .module
             .add_function(name.inner(), ty.as_fn_type(&self.ctx, &[]), None);
@@ -111,7 +111,7 @@ impl<'c> Compiler<'c> {
         );
     }
 
-    pub(super) fn add_external_function(&mut self, name: Ident<'c>, ty: Ty) {
+    pub(super) fn add_external_function(&mut self, name: Ident<'c>, ty: CompilerTy) {
         let func = self.module.add_function(
             name.inner(),
             ty.as_fn_type(&self.ctx, &[]),
@@ -182,7 +182,7 @@ impl<'c> Compiler<'c> {
         }
     }
 
-    pub(super) fn call(&self, state: &State, func: &Ident, args: &[BasicValueEnum]) {
+    pub(super) fn call(&self, state: &State, func: &Ident, args: &[BasicValueEnum]) -> Option<BasicValueEnum> {
         let block = self
             .funcs
             .get(&state.func)
@@ -195,11 +195,14 @@ impl<'c> Compiler<'c> {
         let name = func;
         let func = self.funcs.get(name).unwrap(); // FIXME
 
-        self.builder.build_call(
+        let call = self.builder.build_call(
             func.func,
             args,
             name.inner(), // FIXME: custom
         );
+
+        println!("{:?}", call);
+        call.try_as_basic_value().left()
     }
 
     pub(super) fn ret(&self, state: &State, value: Option<&dyn BasicValue>) {
@@ -223,32 +226,38 @@ impl<'c> Compiler<'c> {
     }
 }
 
-impl<'t> Ty<'t> {
-    pub(super) fn fn_type(&'t self, args: &'t [Ty<'t>]) -> Self {
-        Ty::FunctionType { args, ret: &self }
+impl<'t> CompilerTy<'t> {
+    pub(super) fn fn_type(&'t self, args: &'t [CompilerTy<'t>]) -> Self {
+        CompilerTy::FunctionType { args, ret: &self }
     }
 
     fn as_basic_type(&self, ctx: &Context) -> BasicTypeEnum {
         match self {
-            Ty::Str => {
-                ctx.i8_type()
-                    .ptr_type(AddressSpace::Generic) // TODO: choose address space
-                    .into()
+            CompilerTy::Ty(ty) => match ty {
+                Ty::Str => {
+                    ctx.i8_type()
+                        .ptr_type(AddressSpace::Generic) // TODO: choose address space
+                        .into()
+                }
+                Ty::Void => panic!(), // FIXME
+                Ty::User(_) => unimplemented!(), // FIXME
             }
-            Ty::Void => panic!(),                // FIXME
-            Ty::FunctionType { .. } => panic!(), // FIXME
+            CompilerTy::FunctionType { .. } => panic!(), // FIXME
         }
     }
 
     fn as_fn_type(&self, ctx: &Context, args: &[BasicTypeEnum]) -> FunctionType {
         match self {
-            Ty::Str => {
-                ctx.i8_type()
-                    .ptr_type(AddressSpace::Generic) // TOXO: choose address space
-                    .fn_type(args, false) // TODO: support variadic functions
-            }
-            Ty::Void => ctx.void_type().fn_type(&[], false), // TODO: support variadic functions
-            Ty::FunctionType { args: args_, ret } => {
+            CompilerTy::Ty(ty) => match ty {
+                Ty::Str => {
+                    ctx.i8_type()
+                        .ptr_type(AddressSpace::Generic) // TODO: choose address space
+                        .fn_type(args, false) // TODO: support variadic functions
+                }
+                Ty::Void => ctx.void_type().fn_type(&[], false), // TODO: support variadic functions
+                Ty::User(_) => unimplemented!(), // FIXME
+            },
+            CompilerTy::FunctionType { args: args_, ret } => {
                 assert!(args.is_empty()); // FIXME
 
                 let mut args = vec![];
@@ -291,6 +300,12 @@ impl Compiled {
             Ok(()) => Ok(()),
             Err(err) => Err(Error::llvm(err)),
         }
+    }
+}
+
+impl<'t> From<Ty<'t>> for CompilerTy<'t> {
+    fn from(ty: Ty<'t>) -> CompilerTy<'t> {
+        CompilerTy::Ty(ty)
     }
 }
 

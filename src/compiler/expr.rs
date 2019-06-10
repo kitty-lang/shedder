@@ -1,3 +1,5 @@
+use inkwell::values::BasicValueEnum;
+
 use crate::expr::Expr;
 use crate::expr::Func;
 use crate::expr::Literal;
@@ -7,6 +9,26 @@ use super::compile::Compile;
 use super::compile::Compiler;
 use super::compile::State;
 use super::error::*;
+
+impl<'f> Func<'f> {
+    fn call(&self, compiler: &Compiler, state: &State) -> Option<BasicValueEnum> {
+        let mut args = vec![];
+
+        for arg in &self.args {
+            match arg {
+                Expr::Literal(Literal { name, .. }) => {
+                    args.push(compiler.get_var(&state, name).unwrap()); // FIXME
+                }
+                Expr::Func(func) => {
+                    args.push(func.call(compiler, state).unwrap()); // FIXME
+                }
+                Expr::Var(var) => args.push(compiler.get_var(&state, var).unwrap()), // FIXME
+            }
+        }
+
+        compiler.call(state, &self.name, &args)
+    }
+}
 
 impl<'e> Compile<'e> for Expr<'e> {
     fn prepare(&self, compiler: &mut Compiler<'e>, state: &mut State<'e>) {
@@ -41,27 +63,14 @@ impl<'f> Compile<'f> for Func<'f> {
         for arg in &self.args {
             match arg {
                 Expr::Literal(lit) => lit.prepare(compiler, state),
-                Expr::Func(_) => unimplemented!(), // FIXME
+                Expr::Func(func) => func.prepare(compiler, state),
                 Expr::Var(_) => (),
             }
         }
     }
 
     fn compile(&self, compiler: &mut Compiler<'f>, state: &mut State<'f>) -> Result<()> {
-        let mut args = vec![];
-
-        for arg in &self.args {
-            match arg {
-                Expr::Literal(Literal { name, .. }) => {
-                    args.push(compiler.get_var(&state, name).unwrap()); // FIXME
-                }
-                Expr::Func(_) => unimplemented!(), // FIXME
-                Expr::Var(var) => args.push(compiler.get_var(&state, var).unwrap()), // FIXME
-            }
-        }
-
-        compiler.call(&state, &self.name, &args);
-
+        self.call(compiler, state);
         Ok(())
     }
 }

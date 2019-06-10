@@ -4,14 +4,13 @@ use crate::lexer::Ident;
 use super::compile::Compile;
 use super::compile::Compiler;
 use super::compile::State;
-use super::compile::Ty;
 use super::error::*;
 
 impl<'f> Func<'f> {
     pub(super) fn declare(&'f self, compiler: &mut Compiler<'f>) {
         compiler.add_function(
             self.name.as_ref(),
-            Ty::Void, // TODO: ret
+            self.ret.clone().into(),
         );
     }
 

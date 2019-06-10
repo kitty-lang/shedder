@@ -42,6 +42,11 @@ impl<'e> Expr<'e> {
                     lit,
                 }),
             ));
+        } else {
+            error = error.concat(Error::wrong_token(
+                &tokens[0],
+                vec![TokenTy::Literal],
+            ));
         }
 
         match Func::parse(tokens) {
@@ -56,6 +61,11 @@ impl<'e> Expr<'e> {
 
         if let TokenVariant::Ident(var) = &tokens[0].token {
             return Ok((1, Expr::Var(var.clone())));
+        } else {
+            error = error.concat(Error::wrong_token(
+                &tokens[0],
+                vec![TokenTy::Ident],
+            ));
         }
 
         Err(error)
@@ -70,14 +80,15 @@ impl<'f> Func<'f> {
     fn parse(tokens: &'f [Token<'f>]) -> Result<(usize, Self)> {
         let name = try_get_ident(tokens, 0)?.clone();
 
-        try_eq_symbol(tokens, 1, Symbol::LeftParen).map_err(|mut err| {
-            err.max_after(tokens.get(0).map(|token| token.pos));
+        let mut t = 1;
+        try_eq_symbol(tokens, t, Symbol::LeftParen).map_err(|mut err| {
+            err.max_after(tokens.get(t - 1).map(|token| token.pos));
             err
         })?;
 
         let mut func = Func { name, args: vec![] };
 
-        let mut t = 2;
+        t += 1;
         loop {
             if t >= tokens.len() {
                 let mut handled = Expr::handled();
@@ -90,17 +101,19 @@ impl<'f> Func<'f> {
                 break;
             }
 
+            if !func.args.is_empty() {
+                try_eq_symbol(tokens, t, Symbol::Comma).map_err(|mut err| {
+                    err.max_after(tokens.get(t - 1).map(|token| token.pos));
+                    err
+                })?;
+            }
+
             let (t_, expr) = Expr::parse(split(tokens, t))?;
 
             func.args.push(expr);
             t += t_;
         }
 
-        try_eq_symbol(tokens, t, Symbol::SemiColon).map_err(|mut err| {
-            err.max_after(tokens.get(t - 1).map(|token| token.pos));
-            err
-        })?;
-
-        Ok((t + 1, func))
+        Ok((t, func))
     }
 }

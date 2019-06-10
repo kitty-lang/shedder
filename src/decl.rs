@@ -4,6 +4,7 @@ use std::fmt::Formatter;
 
 use crate::lexer::Ident;
 use crate::stmt::Stmt;
+use crate::ty::Ty;
 
 #[derive(Debug)]
 pub enum Decl<'d> {
@@ -14,7 +15,7 @@ pub enum Decl<'d> {
 pub struct Func<'f> {
     pub name: Ident<'f>,
     // TODO: params
-    // TODO: ret
+    pub ret: Ty<'f>,
     pub stmts: Vec<Stmt<'f>>,
 }
 
@@ -33,6 +34,6 @@ impl<'f> Display for Func<'f> {
 
         // TODO
 
-        write!(fmt, "])")
+        write!(fmt, "], ret={})", self.ret)
     }
 }
