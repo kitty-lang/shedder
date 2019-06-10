@@ -16,7 +16,7 @@ pub enum Literal<'l> {
 impl<'l> Literal<'l> {
     pub(super) fn lex(input: &'l str, pos: &mut Position) -> Result<(&'l str, Token<'l>)> {
         match (input.get(0..1), input.get(1..)) {
-            (Some(_), None) => Err(Error::not_handled()),
+            (Some(_), None) => Err(Error::not_handled(*pos)),
             (Some(r#"""#), Some(rest)) => {
                 let tpos = *pos;
 
@@ -27,12 +27,7 @@ impl<'l> Literal<'l> {
                             pos.col += 1;
                             return Ok((
                                 split(rest, i + 1),
-                                Token {
-                                    token: TokenVariant::Literal(Literal::String(
-                                        rest.get(0..i).unwrap(),
-                                    )),
-                                    pos: tpos,
-                                },
+                                Literal::String(&rest[0..i]).token(tpos),
                             ));
                         }
                         '\n' => {
@@ -47,9 +42,19 @@ impl<'l> Literal<'l> {
                     }
                 }
 
-                Err(Error::not_handled())
+                let epos = *pos;
+                *pos = tpos;
+
+                Err(Error::not_handled(epos))
             }
-            _ => Err(Error::not_handled()),
+            _ => Err(Error::not_handled(*pos)),
+        }
+    }
+
+    fn token(self, pos: Position) -> Token<'l> {
+        Token {
+            token: TokenVariant::Literal(self),
+            pos,
         }
     }
 }

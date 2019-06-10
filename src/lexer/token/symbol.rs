@@ -15,43 +15,55 @@ pub enum Symbol {
     RightParen,
     LeftBracket,
     RightBracket,
+    Comma,
+    Colon,
     SemiColon,
 }
 
 impl Symbol {
     pub(super) fn lex<'i>(input: &'i str, pos: &mut Position) -> Result<(&'i str, Token<'i>)> {
+        let tpos = *pos;
         if input.starts_with('=') {
-            Ok((split(input, 1), Symbol::Equal.token(pos)))
+            pos.col += 1;
+
+            Ok((split(input, 1), Symbol::Equal.token(tpos)))
         } else if input.starts_with('(') {
-            Ok((split(input, 1), Symbol::LeftParen.token(pos)))
+            pos.col += 1;
+
+            Ok((split(input, 1), Symbol::LeftParen.token(tpos)))
         } else if input.starts_with(')') {
-            Ok((split(input, 1), Symbol::RightParen.token(pos)))
+            pos.col += 1;
+
+            Ok((split(input, 1), Symbol::RightParen.token(tpos)))
         } else if input.starts_with('{') {
-            Ok((split(input, 1), Symbol::LeftBracket.token(pos)))
+            pos.col += 1;
+
+            Ok((split(input, 1), Symbol::LeftBracket.token(tpos)))
         } else if input.starts_with('}') {
-            Ok((split(input, 1), Symbol::RightBracket.token(pos)))
+            pos.col += 1;
+
+            Ok((split(input, 1), Symbol::RightBracket.token(tpos)))
+        } else if input.starts_with(',') {
+            pos.col += 1;
+
+            Ok((split(input, 1), Symbol::Comma.token(tpos)))
+        } else if input.starts_with(':') {
+            pos.col += 1;
+
+            Ok((split(input, 1), Symbol::Colon.token(tpos)))
         } else if input.starts_with(';') {
-            Ok((split(input, 1), Symbol::SemiColon.token(pos)))
+            pos.col += 1;
+
+            Ok((split(input, 1), Symbol::SemiColon.token(tpos)))
         } else {
-            Err(Error::not_handled())
+            Err(Error::not_handled(tpos))
         }
     }
 
-    fn token<'t>(self, pos: &mut Position) -> Token<'t> {
-        let tpos = *pos;
-
-        match self {
-            Symbol::Equal => pos.col += 1,
-            Symbol::LeftParen => pos.col += 1,
-            Symbol::RightParen => pos.col += 1,
-            Symbol::LeftBracket => pos.col += 1,
-            Symbol::RightBracket => pos.col += 1,
-            Symbol::SemiColon => pos.col += 1,
-        }
-
+    fn token<'t>(self, pos: Position) -> Token<'t> {
         Token {
             token: TokenVariant::Symbol(self),
-            pos: tpos,
+            pos,
         }
     }
 }
@@ -64,6 +76,8 @@ impl Display for Symbol {
             Symbol::RightParen => write!(fmt, r#"symbol(")")"#),
             Symbol::LeftBracket => write!(fmt, r#"symbol("{{")"#),
             Symbol::RightBracket => write!(fmt, r#"symbol("}}")"#),
+            Symbol::Comma => write!(fmt, r#"symbol(",")"#),
+            Symbol::Colon => write!(fmt, r#"symbol(":")"#),
             Symbol::SemiColon => write!(fmt, r#"symbol(";")"#),
         }
     }

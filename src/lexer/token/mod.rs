@@ -3,6 +3,8 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use crate::ty::Ty;
+
 use super::error;
 use super::error::*;
 use super::split;
@@ -11,6 +13,7 @@ mod ident;
 mod keyword;
 mod literal;
 mod symbol;
+mod ty;
 
 pub use ident::Ident;
 pub use keyword::Keyword;
@@ -26,6 +29,7 @@ pub struct Token<'t> {
 #[derive(Eq, PartialEq, Debug)]
 pub enum TokenVariant<'t> {
     Keyword(Keyword),
+    Ty(Ty<'t>),
     Ident(Ident<'t>),
     Literal(Literal<'t>),
     Symbol(Symbol),
@@ -41,6 +45,7 @@ pub struct Position {
 #[derive(Eq, PartialEq, Debug)]
 pub enum TokenTy {
     Keyword(Keyword),
+    Ty,
     Ident,
     Literal,
     Symbol(Symbol),
@@ -63,6 +68,10 @@ impl<'t> Token<'t> {
             return Ok((input, token));
         }
 
+        if let Ok((input, token)) = Ty::lex(input, pos) {
+            return Ok((input, token));
+        }
+
         if let Ok((input, token)) = Ident::lex(input, pos) {
             return Ok((input, token));
         }
@@ -75,7 +84,7 @@ impl<'t> Token<'t> {
             return Ok((input, token));
         }
 
-        Err(Error::not_handled())
+        Err(Error::not_handled(*pos))
     }
 
     pub fn is_eof(&self) -> bool {
@@ -132,6 +141,7 @@ impl<'t> Display for TokenVariant<'t> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         match self {
             TokenVariant::Keyword(keyword) => write!(fmt, "{}", keyword),
+            TokenVariant::Ty(ty) => write!(fmt, "{}", ty),
             TokenVariant::Ident(ident) => write!(fmt, "{}", ident),
             TokenVariant::Literal(literal) => write!(fmt, "{}", literal),
             TokenVariant::Symbol(symbol) => write!(fmt, "{}", symbol),
@@ -142,7 +152,7 @@ impl<'t> Display for TokenVariant<'t> {
 
 impl Display for Position {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        write!(fmt, "({},{})", self.line, self.col)
+        write!(fmt, "{{{},{}}}", self.line, self.col)
     }
 }
 
@@ -150,6 +160,7 @@ impl Display for TokenTy {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         match self {
             TokenTy::Keyword(keyword) => write!(fmt, "{}", keyword),
+            TokenTy::Ty => write!(fmt, "ty"),
             TokenTy::Ident => write!(fmt, "ident"),
             TokenTy::Literal => write!(fmt, "lit"),
             TokenTy::Symbol(symbol) => write!(fmt, "{}", symbol),

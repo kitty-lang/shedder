@@ -4,6 +4,7 @@ use crate::lexer::Symbol;
 use crate::lexer::Token;
 use crate::lexer::TokenTy;
 use crate::lexer::TokenVariant;
+use crate::ty::Ty;
 
 mod decl;
 mod error;
@@ -30,6 +31,15 @@ fn split<'t>(tokens: &'t [Token<'t>], at: usize) -> &'t [Token<'t>] {
         &[]
     } else {
         &tokens[at..]
+    }
+}
+
+fn try_get_ty<'t>(tokens: &'t [Token<'t>], at: usize) -> Result<Ty<'t>> {
+    match tokens.get(at).map(|token| (token, &token.token)) {
+        Some((_, TokenVariant::Ty(ty))) => Ok(ty.clone()),
+        Some((_, TokenVariant::Ident(ident))) => Ok(Ty::User(ident.clone())),
+        Some((token, _)) => Err(Error::wrong_token(token, vec![TokenTy::Ty, TokenTy::Ident])),
+        None => Err(Error::missing_token(vec![TokenTy::Ty, TokenTy::Ident], None)),
     }
 }
 
