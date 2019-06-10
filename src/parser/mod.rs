@@ -39,7 +39,10 @@ fn try_get_ty<'t>(tokens: &'t [Token<'t>], at: usize) -> Result<Ty<'t>> {
         Some((_, TokenVariant::Ty(ty))) => Ok(ty.clone()),
         Some((_, TokenVariant::Ident(ident))) => Ok(Ty::User(ident.clone())),
         Some((token, _)) => Err(Error::wrong_token(token, vec![TokenTy::Ty, TokenTy::Ident])),
-        None => Err(Error::missing_token(vec![TokenTy::Ty, TokenTy::Ident], None)),
+        None => Err(Error::missing_token(
+            vec![TokenTy::Ty, TokenTy::Ident],
+            None,
+        )),
     }
 }
 

@@ -64,7 +64,10 @@ enum Var<'v> {
 #[derive(Debug)]
 pub(super) enum CompilerTy<'t> {
     Ty(Ty<'t>),
-    FunctionType { args: &'t [CompilerTy<'t>], ret: &'t CompilerTy<'t> },
+    FunctionType {
+        args: &'t [CompilerTy<'t>],
+        ret: &'t CompilerTy<'t>,
+    },
 }
 
 #[derive(Debug)]
@@ -182,7 +185,12 @@ impl<'c> Compiler<'c> {
         }
     }
 
-    pub(super) fn call(&self, state: &State, func: &Ident, args: &[BasicValueEnum]) -> Option<BasicValueEnum> {
+    pub(super) fn call(
+        &self,
+        state: &State,
+        func: &Ident,
+        args: &[BasicValueEnum],
+    ) -> Option<BasicValueEnum> {
         let block = self
             .funcs
             .get(&state.func)
@@ -239,9 +247,9 @@ impl<'t> CompilerTy<'t> {
                         .ptr_type(AddressSpace::Generic) // TODO: choose address space
                         .into()
                 }
-                Ty::Void => panic!(), // FIXME
+                Ty::Void => panic!(),            // FIXME
                 Ty::User(_) => unimplemented!(), // FIXME
-            }
+            },
             CompilerTy::FunctionType { .. } => panic!(), // FIXME
         }
     }
@@ -255,7 +263,7 @@ impl<'t> CompilerTy<'t> {
                         .fn_type(args, false) // TODO: support variadic functions
                 }
                 Ty::Void => ctx.void_type().fn_type(&[], false), // TODO: support variadic functions
-                Ty::User(_) => unimplemented!(), // FIXME
+                Ty::User(_) => unimplemented!(),                 // FIXME
             },
             CompilerTy::FunctionType { args: args_, ret } => {
                 assert!(args.is_empty()); // FIXME

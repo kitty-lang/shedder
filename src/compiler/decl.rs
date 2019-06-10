@@ -8,10 +8,7 @@ use super::error::*;
 
 impl<'f> Func<'f> {
     pub(super) fn declare(&'f self, compiler: &mut Compiler<'f>) {
-        compiler.add_function(
-            self.name.as_ref(),
-            self.ret.clone().into(),
-        );
+        compiler.add_function(self.name.as_ref(), self.ret.clone().into());
     }
 
     pub(super) fn compile(&'f self, compiler: &mut Compiler<'f>) -> Result<()> {

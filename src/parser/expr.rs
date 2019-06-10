@@ -43,10 +43,7 @@ impl<'e> Expr<'e> {
                 }),
             ));
         } else {
-            error = error.concat(Error::wrong_token(
-                &tokens[0],
-                vec![TokenTy::Literal],
-            ));
+            error = error.concat(Error::wrong_token(&tokens[0], vec![TokenTy::Literal]));
         }
 
         match Func::parse(tokens) {
@@ -62,10 +59,7 @@ impl<'e> Expr<'e> {
         if let TokenVariant::Ident(var) = &tokens[0].token {
             return Ok((1, Expr::Var(var.clone())));
         } else {
-            error = error.concat(Error::wrong_token(
-                &tokens[0],
-                vec![TokenTy::Ident],
-            ));
+            error = error.concat(Error::wrong_token(&tokens[0], vec![TokenTy::Ident]));
         }
 
         Err(error)
