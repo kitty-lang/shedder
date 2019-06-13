@@ -5,18 +5,17 @@ use inkwell::targets::InitializationConfig;
 use inkwell::targets::Target;
 use structopt::StructOpt;
 
+mod ast;
 mod cli;
 mod compiler;
-mod decl;
-mod expr;
+mod dependencies;
 mod lexer;
 mod parser;
-mod stmt;
-mod ty;
 
 use cli::Opt;
 use compiler::compile;
 use lexer::lex;
+use lexer::Ident;
 use parser::parse;
 
 fn main() {
@@ -29,22 +28,27 @@ fn main() {
     };
 
     println!();
-    println!("----- LEXER -----");
+    println!("-----------------");
+    println!("------ LEX ------");
+    println!("----- ( 1 ) -----");
+    println!("-----------------");
     println!();
 
     let tokens = lex(&input).unwrap();
 
-    println!("tokens:");
-    print!("  ");
+    println!("- tokens:  ");
     for token in &tokens {
-        print!("{} ", token);
+        println!("  {} ", token);
     }
     println!();
 
     assert!(!input.is_empty());
 
     println!();
-    println!("----- PARSER ----");
+    println!("-----------------");
+    println!("----- PARSE -----");
+    println!("----- ( 2 ) -----");
+    println!("-----------------");
     println!();
 
     let main = match parse(&tokens) {
@@ -52,27 +56,89 @@ fn main() {
         Err(err) => panic!("{}", err),
     };
 
-    println!("main:");
-    println!("- {}", main);
-    println!("- funcs:");
-    for (name, func) in &main.funcs {
-        println!("  - {}:", name.inner());
-        println!("    - {}", func);
+    println!("- modules:");
+    println!("  {}:", main);
+    println!("  - funcs:");
+    for func in &main.funcs {
+        println!("    {}:", func);
         println!("    - stmts:");
         for stmt in &func.stmts {
-            println!("      - {}", stmt);
+            println!("        {}", stmt);
         }
     }
 
-    // TODO: verifier
+    println!();
+    println!("-----------------");
+    println!("---- ANALYZE ----");
+    println!("----- ( 3 ) -----");
+    println!("-----------------");
+    println!();
 
     println!();
-    println!("---- COMPILER ---");
+    println!("-----------------");
+    println!("------ AST ------");
+    println!("---- ( 3.1 ) ----");
+    println!("-----------------");
+    println!();
+
+    let mut ast = ast::Tree::build(&[&main]);
+    let puts = Ident::Owned("puts".into());
+
+    // --- FIXME ---
+    ast.funcs.insert(
+        puts.as_ref(),
+        ast::Func {
+            name: puts.as_ref(),
+            ret: lexer::Ty::Void,
+            start: None,
+        },
+    );
+
+    for module in ast.modules.values_mut() {
+        module.funcs.insert(puts.as_ref());
+    }
+    // --- FIXME ---
+
+    println!("{}", ast);
+
+    println!();
+    println!("-----------------");
+    println!("-- DEPENDENCIES -");
+    println!("---- ( 3.2 ) ----");
+    println!("-----------------");
+    println!();
+
+    let dependencies = dependencies::Graph::build(&ast);
+    println!("{}", dependencies);
+
+    println!();
+    println!("-----------------");
+    println!("----- VERIFY ----");
+    println!("---- ( 3.2 ) ----");
+    println!("-----------------");
+    println!();
+
+    dependencies.verify().unwrap();
+    ast.verify().unwrap();
+
+    // --- FIXME ---
+    for module in ast.modules.values_mut() {
+        module.funcs.remove(&puts);
+    }
+
+    ast.funcs.remove(&puts);
+    // --- FIXME ---
+
+    println!();
+    println!("-----------------");
+    println!("---- COMPILE ----");
+    println!("----- ( 4 ) -----");
+    println!("-----------------");
     println!();
 
     Target::initialize_x86(&InitializationConfig::default());
 
-    let mut compiled = compile(&main).unwrap();
+    let mut compiled = compile(&ast).unwrap();
     println!("{}", compiled);
 
     compiled.create_target_machine();

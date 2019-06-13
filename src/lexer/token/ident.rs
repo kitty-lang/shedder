@@ -17,17 +17,17 @@ pub enum Ident<'i> {
 }
 
 impl<'i> Ident<'i> {
-    pub fn as_ref(&'i self) -> Self {
-        match self {
-            Ident::Ref(ident) => Ident::Ref(ident),
-            Ident::Owned(ident) => Ident::Ref(ident),
-        }
-    }
-
     pub fn inner(&self) -> &str {
         match self {
             Ident::Ref(ident) => ident,
             Ident::Owned(ident) => ident,
+        }
+    }
+
+    pub fn as_ref(&'i self) -> Ident<'i> {
+        match self {
+            Ident::Ref(ident) => Ident::Ref(ident),
+            Ident::Owned(ident) => Ident::Ref(ident),
         }
     }
 
@@ -64,7 +64,7 @@ impl<'i> Ident<'i> {
 
 impl<'i> Hash for Ident<'i> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.inner().hash(state)
+        self.inner().hash(state);
     }
 }
 

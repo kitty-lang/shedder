@@ -17,7 +17,7 @@ pub enum ErrorKind {
 }
 
 impl Error {
-    pub(super) fn not_handled(pos: Position) -> Self {
+    pub(super) fn not_handled(pos: Position) -> Error {
         Error {
             kind: ErrorKind::NotHandled(pos),
         }

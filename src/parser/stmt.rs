@@ -1,17 +1,35 @@
-use crate::expr::Expr;
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
+
+use crate::lexer::Ident;
 use crate::lexer::Keyword;
 use crate::lexer::Symbol;
 use crate::lexer::Token;
 use crate::lexer::TokenTy;
-use crate::stmt::Let;
-use crate::stmt::Return;
-use crate::stmt::Stmt;
 
 use super::error::*;
+use super::expr::Expr;
 use super::split;
 use super::try_eq_keyword;
 use super::try_eq_symbol;
 use super::try_get_ident;
+
+#[derive(Debug)]
+pub enum Stmt<'s> {
+    Let(Let<'s>),
+    Return(Return<'s>),
+    Expr(Expr<'s>),
+}
+
+#[derive(Debug)]
+pub struct Let<'l> {
+    pub name: Ident<'l>,
+    pub value: Expr<'l>,
+}
+
+#[derive(Debug)]
+pub struct Return<'r>(pub Expr<'r>);
 
 impl<'s> Stmt<'s> {
     pub(super) fn handled() -> Vec<TokenTy> {
@@ -22,7 +40,7 @@ impl<'s> Stmt<'s> {
         handled
     }
 
-    pub(super) fn parse(tokens: &'s [Token<'s>]) -> Result<(usize, Self)> {
+    pub(super) fn parse(tokens: &'s [Token<'s>]) -> Result<(usize, Stmt<'s>)> {
         if tokens.is_empty() {
             return Err(Error::missing_token(Self::handled(), None));
         }
@@ -91,11 +109,18 @@ impl<'s> Stmt<'s> {
 }
 
 impl<'l> Let<'l> {
+    pub fn as_ref(&'l self) -> Let<'l> {
+        Let {
+            name: self.name.as_ref(),
+            value: self.value.as_ref(),
+        }
+    }
+
     fn handled() -> Vec<TokenTy> {
         vec![TokenTy::Keyword(Keyword::Let)]
     }
 
-    fn parse(tokens: &'l [Token<'l>]) -> Result<(usize, Self)> {
+    fn parse(tokens: &'l [Token<'l>]) -> Result<(usize, Let<'l>)> {
         try_eq_keyword(tokens, 0, Keyword::Let)?;
 
         let mut t = 1;
@@ -104,7 +129,7 @@ impl<'l> Let<'l> {
                 err.max_after(tokens.get(t - 1).map(|token| token.pos));
                 err
             })?
-            .clone();
+            .as_ref();
 
         t += 1;
         try_eq_symbol(tokens, t, Symbol::Equal).map_err(|mut err| {
@@ -123,11 +148,15 @@ impl<'l> Let<'l> {
 }
 
 impl<'r> Return<'r> {
+    pub fn as_ref(&'r self) -> Return<'r> {
+        Return(self.0.as_ref())
+    }
+
     fn handled() -> Vec<TokenTy> {
         vec![TokenTy::Keyword(Keyword::Return)]
     }
 
-    fn parse(tokens: &'r [Token<'r>]) -> Result<(usize, Self)> {
+    fn parse(tokens: &'r [Token<'r>]) -> Result<(usize, Return<'r>)> {
         try_eq_keyword(tokens, 0, Keyword::Return)?;
 
         let (t, expr) = Expr::parse(split(tokens, 1)).map_err(|mut err| {
@@ -136,5 +165,28 @@ impl<'r> Return<'r> {
         })?;
 
         Ok((t + 1, Return(expr)))
+    }
+}
+
+impl<'s> Display for Stmt<'s> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        write!(fmt, "stmt::")?;
+        match self {
+            Stmt::Let(let_) => write!(fmt, "{}", let_),
+            Stmt::Return(ret) => write!(fmt, "{}", ret),
+            Stmt::Expr(expr) => write!(fmt, "{}", expr),
+        }
+    }
+}
+
+impl<'l> Display for Let<'l> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        write!(fmt, "let(name={}, value={})", self.name, self.value)
+    }
+}
+
+impl<'r> Display for Return<'r> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        write!(fmt, "return({})", self.0)
     }
 }

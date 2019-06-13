@@ -1,18 +1,34 @@
-use crate::decl::Decl;
-use crate::decl::Func;
+use std::fmt;
+use std::fmt::Display;
+use std::fmt::Formatter;
+
+use crate::lexer::Ident;
 use crate::lexer::Keyword;
 use crate::lexer::Symbol;
 use crate::lexer::Token;
 use crate::lexer::TokenTy;
-use crate::stmt::Stmt;
-use crate::ty::Ty;
+use crate::lexer::Ty;
 
 use super::error::*;
 use super::split;
+use super::stmt::Stmt;
 use super::try_eq_keyword;
 use super::try_eq_symbol;
 use super::try_get_ident;
 use super::try_get_ty;
+
+#[derive(Debug)]
+pub enum Decl<'d> {
+    Func(Func<'d>),
+}
+
+#[derive(Debug)]
+pub struct Func<'f> {
+    pub name: Ident<'f>,
+    // TODO: params
+    pub ret: Ty,
+    pub stmts: Vec<Stmt<'f>>,
+}
 
 impl<'d> Decl<'d> {
     pub(super) fn handled() -> Vec<TokenTy> {
@@ -21,7 +37,7 @@ impl<'d> Decl<'d> {
         handled
     }
 
-    pub(super) fn parse(tokens: &'d [Token<'d>]) -> Result<(usize, Self)> {
+    pub(super) fn parse(tokens: &'d [Token<'d>]) -> Result<(usize, Decl<'d>)> {
         if tokens.is_empty() {
             return Err(Error::missing_token(Self::handled(), None));
         }
@@ -42,7 +58,7 @@ impl<'f> Func<'f> {
         vec![TokenTy::Keyword(Keyword::Func)]
     }
 
-    fn parse(tokens: &'f [Token<'f>]) -> Result<(usize, Self)> {
+    fn parse(tokens: &'f [Token<'f>]) -> Result<(usize, Func<'f>)> {
         try_eq_keyword(tokens, 0, Keyword::Func)?;
 
         let mut t = 1;
@@ -51,7 +67,7 @@ impl<'f> Func<'f> {
                 err.max_after(tokens.get(t - 1).map(|token| token.pos));
                 err
             })?
-            .clone();
+            .as_ref();
 
         t += 1;
         try_eq_symbol(tokens, t, Symbol::LeftParen).map_err(|mut err| {
@@ -123,5 +139,24 @@ impl<'f> Func<'f> {
         }
 
         Ok((t, func))
+    }
+}
+
+impl<'d> Display for Decl<'d> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        write!(fmt, "decl::")?;
+        match self {
+            Decl::Func(func) => write!(fmt, "{}", func),
+        }
+    }
+}
+
+impl<'f> Display for Func<'f> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        write!(fmt, "func(name={}, args=[", self.name.inner())?;
+
+        // TODO
+
+        write!(fmt, "], ret={})", self.ret)
     }
 }
