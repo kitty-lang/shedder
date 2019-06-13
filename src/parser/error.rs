@@ -27,19 +27,19 @@ pub enum ErrorKind<'e> {
 }
 
 impl<'e> Error<'e> {
-    pub(super) fn missing_token(handled: Vec<TokenTy>, after: Option<Position>) -> Self {
+    pub(super) fn missing_token(handled: Vec<TokenTy>, after: Option<Position>) -> Error<'e> {
         Error {
             kind: ErrorKind::MissingToken { handled, after },
         }
     }
 
-    pub(super) fn wrong_token(token: &'e Token<'e>, handled: Vec<TokenTy>) -> Self {
+    pub(super) fn wrong_token(token: &'e Token<'e>, handled: Vec<TokenTy>) -> Error<'e> {
         Error {
             kind: ErrorKind::WrongToken { token, handled },
         }
     }
 
-    pub(super) fn multiple(errors: Vec<Error<'e>>) -> Self {
+    pub(super) fn multiple(errors: Vec<Error<'e>>) -> Error<'e> {
         Error {
             kind: ErrorKind::Multiple(errors),
         }
@@ -63,7 +63,7 @@ impl<'e> Error<'e> {
         }
     }
 
-    pub(super) fn concat(mut self, mut other: Error<'e>) -> Self {
+    pub(super) fn concat(mut self, mut other: Error<'e>) -> Error<'e> {
         match (&mut self.kind, &mut other.kind) {
             (ErrorKind::Multiple(left), ErrorKind::Multiple(right)) => {
                 left.append(right);

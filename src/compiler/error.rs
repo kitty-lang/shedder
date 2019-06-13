@@ -18,13 +18,13 @@ pub enum ErrorKind {
 }
 
 impl Error {
-    pub(super) fn llvm(string: LLVMString) -> Self {
+    pub(super) fn llvm(string: LLVMString) -> Error {
         Error {
             kind: ErrorKind::LLVM(string.to_string()),
         }
     }
 
-    pub(super) fn missing_target_machine() -> Self {
+    pub(super) fn missing_target_machine() -> Error {
         Error {
             kind: ErrorKind::MissingTargetMachine,
         }

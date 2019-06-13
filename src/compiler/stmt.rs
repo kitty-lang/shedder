@@ -1,52 +1,59 @@
-use crate::expr::Expr;
-use crate::stmt::Let;
-use crate::stmt::Return;
-use crate::stmt::Stmt;
+use crate::ast::Stmt;
+use crate::parser::expr::Expr;
+use crate::parser::stmt::Let;
+use crate::parser::stmt::Return;
 
-use super::compile::Compile;
 use super::compile::Compiler;
 use super::compile::State;
 use super::error::*;
 
-impl<'s> Compile<'s> for Stmt<'s> {
-    fn prepare(&self, compiler: &mut Compiler<'s>, state: &mut State<'s>) {
+impl<'s> Stmt<'s> {
+    pub(super) fn prepare(&'s self, compiler: &mut Compiler<'s>, state: &mut State<'s>) {
         match self {
-            Stmt::Expr(expr) => expr.prepare(compiler, state),
-            Stmt::Let(let_) => let_.prepare(compiler, state),
-            Stmt::Return(ret) => ret.prepare(compiler, state),
+            Stmt::Let { let_, .. } => let_.prepare(compiler, state),
+            Stmt::Return { .. } => (),
+            Stmt::Expr { expr, .. } => expr.prepare(compiler, state),
         }
     }
 
-    fn compile(&self, compiler: &mut Compiler<'s>, state: &mut State<'s>) -> Result<()> {
+    pub(super) fn compile(
+        &'s self,
+        compiler: &mut Compiler<'s>,
+        state: &mut State<'s>,
+    ) -> Result<()> {
         match self {
-            Stmt::Expr(expr) => expr.compile(compiler, state),
-            Stmt::Let(let_) => let_.compile(compiler, state),
-            Stmt::Return(ret) => ret.compile(compiler, state),
+            Stmt::Let { let_, .. } => let_.compile(compiler, state),
+            Stmt::Return { ret, .. } => ret.compile(compiler, state),
+            Stmt::Expr { expr, .. } => expr.compile(compiler, state),
         }
     }
 }
 
-impl<'l> Compile<'l> for Let<'l> {
-    fn prepare(&self, compiler: &mut Compiler<'l>, state: &mut State<'l>) {
+impl<'l> Let<'l> {
+    pub(super) fn prepare(&'l self, compiler: &mut Compiler<'l>, state: &mut State<'l>) {
         match &self.value {
             Expr::Literal(lit) => {
-                compiler.alias(state, self.name.clone(), lit.name.clone());
+                compiler.alias(state, self.name.as_ref(), lit.name.as_ref());
                 lit.prepare(compiler, state);
             }
             _ => unimplemented!(), // FIXME
         }
     }
 
-    fn compile(&self, compiler: &mut Compiler<'l>, state: &mut State<'l>) -> Result<()> {
+    pub(super) fn compile(&self, _: &mut Compiler<'l>, _: &mut State<'l>) -> Result<()> {
         match &self.value {
-            Expr::Literal(lit) => lit.compile(compiler, state),
+            Expr::Literal(_) => Ok(()),
             _ => unimplemented!(), // FIXME
         }
     }
 }
 
-impl<'r> Compile<'r> for Return<'r> {
-    fn compile(&self, compiler: &mut Compiler<'r>, state: &mut State<'r>) -> Result<()> {
+impl<'r> Return<'r> {
+    pub(super) fn compile(
+        &'r self,
+        compiler: &mut Compiler<'r>,
+        state: &mut State<'r>,
+    ) -> Result<()> {
         match &self.0 {
             Expr::Literal(lit) => {
                 lit.prepare(compiler, state);

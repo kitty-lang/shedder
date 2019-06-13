@@ -3,8 +3,6 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-use crate::ty::Ty;
-
 use super::error;
 use super::error::*;
 use super::split;
@@ -20,6 +18,7 @@ pub use ident::Ident;
 pub use keyword::Keyword;
 pub use literal::Literal;
 pub use symbol::Symbol;
+pub use ty::Ty;
 
 use comment::Comment;
 
@@ -32,7 +31,7 @@ pub struct Token<'t> {
 #[derive(Debug)]
 pub enum TokenVariant<'t> {
     Keyword(Keyword),
-    Ty(Ty<'t>),
+    Ty(Ty),
     Ident(Ident<'t>),
     Literal(Literal<'t>),
     Symbol(Symbol),

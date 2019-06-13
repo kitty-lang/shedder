@@ -24,7 +24,7 @@ use inkwell::AddressSpace;
 use inkwell::OptimizationLevel;
 
 use crate::lexer::Ident;
-use crate::ty::Ty;
+use crate::lexer::Ty;
 
 use super::error::*;
 
@@ -32,7 +32,8 @@ use super::error::*;
 pub(super) struct Compiler<'c> {
     pub(super) ctx: Context,
     builder: Builder,
-    module: Module,
+    module: Option<Module>,
+    modules: Vec<Module>,
     // TODO: passes
     funcs: FnvHashMap<Ident<'c>, Func<'c>>,
 }
@@ -63,7 +64,7 @@ enum Var<'v> {
 
 #[derive(Debug)]
 pub(super) enum CompilerTy<'t> {
-    Ty(Ty<'t>),
+    Ty(Ty),
     FunctionType {
         args: &'t [CompilerTy<'t>],
         ret: &'t CompilerTy<'t>,
@@ -76,33 +77,35 @@ pub struct Compiled {
     tm: Option<TargetMachine>,
 }
 
-pub(super) trait Compile<'c> {
-    #[allow(unused)]
-    fn prepare(&self, compiler: &mut Compiler<'c>, state: &mut State<'c>) {}
-
-    #[allow(unused)]
-    fn compile(&self, compiler: &mut Compiler<'c>, state: &mut State<'c>) -> Result<()> {
-        Ok(())
-    }
-}
-
 impl<'c> Compiler<'c> {
-    pub(super) fn new(module: &str) -> Self {
+    pub(super) fn new() -> Compiler<'c> {
         let ctx = Context::create();
         let builder = ctx.create_builder();
-        let module = ctx.create_module(module);
 
         Compiler {
             ctx,
             builder,
-            module,
+            module: None,
+            modules: vec![],
             funcs: FnvHashMap::default(),
         }
     }
 
+    fn module(&self) -> &Module {
+        self.module.as_ref().unwrap() // FIXME
+    }
+
+    pub(super) fn new_module(&mut self, module: &str) {
+        if let Some(module) = self.module.take() {
+            self.modules.push(module);
+        }
+
+        self.module = Some(self.ctx.create_module(module));
+    }
+
     pub(super) fn add_function(&mut self, name: Ident<'c>, ty: CompilerTy) {
         let func = self
-            .module
+            .module()
             .add_function(name.inner(), ty.as_fn_type(&self.ctx, &[]), None);
 
         self.funcs.insert(
@@ -115,7 +118,7 @@ impl<'c> Compiler<'c> {
     }
 
     pub(super) fn add_external_function(&mut self, name: Ident<'c>, ty: CompilerTy) {
-        let func = self.module.add_function(
+        let func = self.module().add_function(
             name.inner(),
             ty.as_fn_type(&self.ctx, &[]),
             Some(Linkage::AvailableExternally),
@@ -209,7 +212,6 @@ impl<'c> Compiler<'c> {
             name.inner(), // FIXME: custom
         );
 
-        println!("{:?}", call);
         call.try_as_basic_value().left()
     }
 
@@ -227,15 +229,22 @@ impl<'c> Compiler<'c> {
     }
 
     pub(super) fn compiled(self) -> Compiled {
-        Compiled {
-            module: self.module,
-            tm: None,
+        let module = self.ctx.create_module("main");
+
+        if let Some(module_) = self.module {
+            module.link_in_module(module_).unwrap(); // FIXME
         }
+
+        for module_ in self.modules {
+            module.link_in_module(module_).unwrap(); // FIXME
+        }
+
+        Compiled { module, tm: None }
     }
 }
 
 impl<'t> CompilerTy<'t> {
-    pub(super) fn fn_type(&'t self, args: &'t [CompilerTy<'t>]) -> Self {
+    pub(super) fn fn_type(&'t self, args: &'t [CompilerTy<'t>]) -> CompilerTy<'t> {
         CompilerTy::FunctionType { args, ret: &self }
     }
 
@@ -247,8 +256,7 @@ impl<'t> CompilerTy<'t> {
                         .ptr_type(AddressSpace::Generic) // TODO: choose address space
                         .into()
                 }
-                Ty::Void => panic!(),            // FIXME
-                Ty::User(_) => unimplemented!(), // FIXME
+                Ty::Void => panic!(), // FIXME
             },
             CompilerTy::FunctionType { .. } => panic!(), // FIXME
         }
@@ -263,7 +271,6 @@ impl<'t> CompilerTy<'t> {
                         .fn_type(args, false) // TODO: support variadic functions
                 }
                 Ty::Void => ctx.void_type().fn_type(&[], false), // TODO: support variadic functions
-                Ty::User(_) => unimplemented!(),                 // FIXME
             },
             CompilerTy::FunctionType { args: args_, ret } => {
                 assert!(args.is_empty()); // FIXME
@@ -311,8 +318,8 @@ impl Compiled {
     }
 }
 
-impl<'t> From<Ty<'t>> for CompilerTy<'t> {
-    fn from(ty: Ty<'t>) -> CompilerTy<'t> {
+impl<'t> From<Ty> for CompilerTy<'t> {
+    fn from(ty: Ty) -> CompilerTy<'t> {
         CompilerTy::Ty(ty)
     }
 }
@@ -322,7 +329,13 @@ impl<'c> Display for Compiler<'c> {
         // TODO: ctx
         // TODO: builder
 
-        self.module.print_to_stderr(); // FIXME
+        if let Some(module) = &self.module {
+            module.print_to_stderr(); // FIXME
+        }
+
+        for module in &self.modules {
+            module.print_to_stderr(); // FIXME
+        }
 
         // TODO: funcs
 
