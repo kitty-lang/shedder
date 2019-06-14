@@ -13,8 +13,8 @@ pub enum Symbol {
     Equal,
     LeftParen,
     RightParen,
-    LeftBracket,
-    RightBracket,
+    LeftBrace,
+    RightBrace,
     Comma,
     Colon,
     SemiColon,
@@ -38,11 +38,11 @@ impl Symbol {
         } else if input.starts_with('{') {
             pos.col += 1;
 
-            Ok((split(input, 1), Symbol::LeftBracket.token(tpos)))
+            Ok((split(input, 1), Symbol::LeftBrace.token(tpos)))
         } else if input.starts_with('}') {
             pos.col += 1;
 
-            Ok((split(input, 1), Symbol::RightBracket.token(tpos)))
+            Ok((split(input, 1), Symbol::RightBrace.token(tpos)))
         } else if input.starts_with(',') {
             pos.col += 1;
 
@@ -74,8 +74,8 @@ impl Display for Symbol {
             Symbol::Equal => write!(fmt, r#"symbol("=")"#),
             Symbol::LeftParen => write!(fmt, r#"symbol("(")"#),
             Symbol::RightParen => write!(fmt, r#"symbol(")")"#),
-            Symbol::LeftBracket => write!(fmt, r#"symbol("{{")"#),
-            Symbol::RightBracket => write!(fmt, r#"symbol("}}")"#),
+            Symbol::LeftBrace => write!(fmt, r#"symbol("{{")"#),
+            Symbol::RightBrace => write!(fmt, r#"symbol("}}")"#),
             Symbol::Comma => write!(fmt, r#"symbol(",")"#),
             Symbol::Colon => write!(fmt, r#"symbol(":")"#),
             Symbol::SemiColon => write!(fmt, r#"symbol(";")"#),

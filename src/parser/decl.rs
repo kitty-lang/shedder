@@ -25,9 +25,15 @@ pub enum Decl<'d> {
 #[derive(Debug)]
 pub struct Func<'f> {
     pub name: Ident<'f>,
-    // TODO: params
+    pub args: Vec<Arg<'f>>,
     pub ret: Ty,
     pub stmts: Vec<Stmt<'f>>,
+}
+
+#[derive(Debug)]
+pub struct Arg<'a> {
+    pub name: Ident<'a>,
+    pub ty: Ty,
 }
 
 impl<'d> Decl<'d> {
@@ -75,13 +81,54 @@ impl<'f> Func<'f> {
             err
         })?;
 
-        // TODO: args
+        let mut args = vec![];
 
         t += 1;
-        try_eq_symbol(tokens, t, Symbol::RightParen).map_err(|mut err| {
-            err.max_after(tokens.get(t - 1).map(|token| token.pos));
-            err
-        })?;
+        let mut arg = None;
+        loop {
+            if t >= tokens.len() {
+                let mut handled = Stmt::handled();
+                handled.push(TokenTy::Symbol(Symbol::RightParen));
+                return Err(Error::missing_token(
+                    handled,
+                    tokens.get(t - 1).map(|token| token.pos),
+                ));
+            }
+
+            if tokens[t].eq_symbol(Symbol::RightParen) {
+                break;
+            }
+
+            if arg.is_none() {
+                arg = Some(
+                    try_get_ident(tokens, t)
+                        .map_err(|mut err| {
+                            err.max_after(tokens.get(t - 1).map(|token| token.pos));
+                            err
+                        })?
+                        .as_ref(),
+                );
+            } else {
+                try_eq_symbol(tokens, t, Symbol::Colon).map_err(|mut err| {
+                    err.max_after(tokens.get(t - 1).map(|token| token.pos));
+                    err
+                })?;
+
+                t += 1;
+                let ty = try_get_ty(tokens, t).map_err(|mut err| {
+                    err.max_after(tokens.get(t - 1).map(|token| token.pos));
+                    err
+                })?;
+
+                args.push(Arg {
+                    name: arg.unwrap(),
+                    ty,
+                });
+                arg = None;
+            }
+
+            t += 1;
+        }
 
         t += 1;
         let ty = match try_eq_symbol(tokens, t, Symbol::Colon) {
@@ -102,29 +149,25 @@ impl<'f> Func<'f> {
             }
         };
 
-        try_eq_symbol(tokens, t, Symbol::LeftBracket).map_err(|mut err| {
+        try_eq_symbol(tokens, t, Symbol::LeftBrace).map_err(|mut err| {
             err.max_after(tokens.get(t - 1).map(|token| token.pos));
             err
         })?;
 
-        let mut func = Func {
-            name,
-            ret: ty.unwrap_or(Ty::Void),
-            stmts: vec![],
-        };
+        let mut stmts = vec![];
 
         t += 1;
         loop {
             if t >= tokens.len() {
                 let mut handled = Stmt::handled();
-                handled.push(TokenTy::Symbol(Symbol::RightBracket));
+                handled.push(TokenTy::Symbol(Symbol::RightBrace));
                 return Err(Error::missing_token(
                     handled,
                     tokens.get(t - 1).map(|token| token.pos),
                 ));
             }
 
-            if tokens[t].eq_symbol(Symbol::RightBracket) {
+            if tokens[t].eq_symbol(Symbol::RightBrace) {
                 t += 1;
                 break;
             }
@@ -134,11 +177,19 @@ impl<'f> Func<'f> {
                 err
             })?;
 
-            func.stmts.push(stmt);
+            stmts.push(stmt);
             t += t_;
         }
 
-        Ok((t, func))
+        Ok((
+            t,
+            Func {
+                name,
+                args,
+                ret: ty.unwrap_or(Ty::Void),
+                stmts,
+            },
+        ))
     }
 }
 
@@ -155,8 +206,16 @@ impl<'f> Display for Func<'f> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         write!(fmt, "func(name={}, args=[", self.name.inner())?;
 
-        // TODO
+        for arg in &self.args {
+            write!(fmt, " {} ", arg)?;
+        }
 
         write!(fmt, "], ret={})", self.ret)
+    }
+}
+
+impl<'a> Display for Arg<'a> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        write!(fmt, "arg(name={}, ty={})", self.name.inner(), self.ty)
     }
 }

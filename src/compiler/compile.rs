@@ -25,6 +25,7 @@ use inkwell::OptimizationLevel;
 
 use crate::lexer::Ident;
 use crate::lexer::Ty;
+use crate::parser::decl::Arg;
 
 use super::error::*;
 
@@ -47,6 +48,7 @@ pub(super) struct State<'s> {
 #[derive(Debug)]
 struct Func<'f> {
     func: FunctionValue,
+    args: FnvHashMap<Ident<'f>, BasicValueEnum>,
     blocks: FnvHashMap<Ident<'f>, Block<'f>>,
 }
 
@@ -59,10 +61,11 @@ struct Block<'b> {
 #[derive(Debug)]
 enum Var<'v> {
     Alias(Ident<'v>),
+    Arg,
     Global(PointerValue),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(super) enum CompilerTy<'t> {
     Ty(Ty),
     FunctionType {
@@ -103,15 +106,26 @@ impl<'c> Compiler<'c> {
         self.module = Some(self.ctx.create_module(module));
     }
 
-    pub(super) fn add_function(&mut self, name: Ident<'c>, ty: CompilerTy) {
+    pub(super) fn add_function(&mut self, name: Ident<'c>, args: &[Arg<'c>], ty: CompilerTy) {
+        let mut args_ = vec![];
+        for arg in args {
+            args_.push(CompilerTy::from(arg.ty).as_basic_type(&self.ctx));
+        }
+
         let func = self
             .module()
-            .add_function(name.inner(), ty.as_fn_type(&self.ctx, &[]), None);
+            .add_function(name.inner(), ty.as_fn_type(&self.ctx, &args_), None);
+
+        let mut args_ = FnvHashMap::default();
+        for (a, arg) in args.iter().enumerate() {
+            args_.insert(arg.name.clone(), func.get_nth_param(a as u32).unwrap()); // FIXME
+        }
 
         self.funcs.insert(
             name,
             Func {
                 func,
+                args: args_,
                 blocks: FnvHashMap::default(),
             },
         );
@@ -128,6 +142,7 @@ impl<'c> Compiler<'c> {
             name,
             Func {
                 func,
+                args: FnvHashMap::default(), // FIXME
                 blocks: FnvHashMap::default(),
             },
         );
@@ -137,13 +152,12 @@ impl<'c> Compiler<'c> {
         let func = self.funcs.get_mut(func).unwrap(); // FIXME
         let block = func.func.append_basic_block(name.inner());
 
-        func.blocks.insert(
-            name,
-            Block {
-                block,
-                vars: FnvHashMap::default(),
-            },
-        );
+        let mut vars = FnvHashMap::default();
+        for arg in func.args.keys() {
+            vars.insert(arg.clone(), Var::Arg);
+        }
+
+        func.blocks.insert(name, Block { block, vars });
     }
 
     pub(super) fn add_global_string(&mut self, state: &State<'c>, name: Ident<'c>, string: &str) {
@@ -175,15 +189,10 @@ impl<'c> Compiler<'c> {
     }
 
     pub(super) fn get_var(&self, state: &State, name: &Ident) -> Option<BasicValueEnum> {
-        match self
-            .funcs
-            .get(&state.func)?
-            .blocks
-            .get(&state.block)?
-            .vars
-            .get(name)?
-        {
+        let func = self.funcs.get(&state.func)?;
+        match func.blocks.get(&state.block)?.vars.get(name)? {
             Var::Alias(var) => self.get_var(state, var),
+            Var::Arg => func.args.get(name).copied(),
             Var::Global(var) => Some((*var).into()),
         }
     }
@@ -270,7 +279,7 @@ impl<'t> CompilerTy<'t> {
                         .ptr_type(AddressSpace::Generic) // TODO: choose address space
                         .fn_type(args, false) // TODO: support variadic functions
                 }
-                Ty::Void => ctx.void_type().fn_type(&[], false), // TODO: support variadic functions
+                Ty::Void => ctx.void_type().fn_type(args, false), // TODO: support variadic functions
             },
             CompilerTy::FunctionType { args: args_, ret } => {
                 assert!(args.is_empty()); // FIXME
