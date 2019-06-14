@@ -159,6 +159,10 @@ impl<'f> Func<'f> {
 }
 
 impl<'a> Args<'a> {
+    pub fn len(&self) -> usize {
+        self.inner().len()
+    }
+
     pub fn inner(&self) -> &[Expr] {
         match self {
             Args::Ref(args) => args,
@@ -180,7 +184,7 @@ impl<'e> Display for Expr<'e> {
         match self {
             Expr::Literal(lit) => write!(fmt, "{}", lit),
             Expr::Func(func) => write!(fmt, "{}", func),
-            Expr::Var(var) => write!(fmt, "{}", var),
+            Expr::Var(var) => write!(fmt, "var({})", var.inner()),
         }
     }
 }

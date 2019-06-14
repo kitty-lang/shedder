@@ -16,7 +16,9 @@ use cli::Opt;
 use compiler::compile;
 use lexer::lex;
 use lexer::Ident;
+use lexer::Ty;
 use parser::parse;
+use parser::decl::Arg;
 
 fn main() {
     let opt = Opt::from_args();
@@ -85,10 +87,12 @@ fn main() {
     let puts = Ident::Owned("puts".into());
 
     // --- FIXME ---
+    let puts_args = vec![Arg { name: Ident::Owned("put".into()), ty: Ty::Str }];
     ast.funcs.insert(
         puts.as_ref(),
         ast::Func {
             name: puts.as_ref(),
+            args: &puts_args,
             ret: lexer::Ty::Void,
             start: None,
         },
@@ -119,7 +123,10 @@ fn main() {
     println!();
 
     dependencies.verify().unwrap();
+    println!("DEPENDENCIES: OK");
+
     ast.verify().unwrap();
+    println!("AST: OK");
 
     // --- FIXME ---
     for module in ast.modules.values_mut() {

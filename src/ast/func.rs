@@ -3,6 +3,7 @@ use fnv::FnvHashMap;
 use crate::lexer::Ident;
 use crate::lexer::Ty;
 use crate::parser::decl;
+use crate::parser::decl::Arg;
 
 use super::error::*;
 use super::stmt::Stmt;
@@ -11,7 +12,7 @@ use super::tree::Tree;
 #[derive(Debug)]
 pub struct Func<'f> {
     pub name: Ident<'f>,
-    // TODO: args
+    pub args: &'f [Arg<'f>],
     pub ret: Ty,
     pub start: Option<usize>,
 }
@@ -21,6 +22,7 @@ impl<'f> Func<'f> {
         let stmts = &func.stmts;
         let mut func = Func {
             name: func.name.as_ref(),
+            args: &func.args,
             ret: func.ret,
             start: None,
         };
@@ -45,12 +47,16 @@ impl<'f> Func<'f> {
         let mut vars = FnvHashMap::default();
         let mut returned = false;
 
+        for arg in self.args {
+            vars.insert(arg.name.as_ref(), arg.ty);
+        }
+
         let mut next = self.start;
         while let Some(next_) = next {
             let stmt = tree.stmts[next_].as_ref().unwrap(); // FIXME
             match stmt {
                 Stmt::Let { let_, next: next_ } => {
-                    match let_.value.ty(&vars, tree) {
+                    match let_.value.ty(stmt, &vars, tree) {
                         Ok(ty) => {
                             vars.insert(let_.name.as_ref(), ty);
                         }
@@ -60,7 +66,7 @@ impl<'f> Func<'f> {
                     next = *next_;
                 }
                 Stmt::Return { ret, next: next_ } => {
-                    match ret.0.ty(&vars, tree) {
+                    match ret.0.ty(stmt, &vars, tree) {
                         Ok(ty) => {
                             if ty != self.ret {
                                 error = error.concat(Error::wrong_ty(stmt, ty, vec![self.ret]));
@@ -73,7 +79,7 @@ impl<'f> Func<'f> {
                     next = *next_;
                 }
                 Stmt::Expr { expr, next: next_ } => {
-                    expr.ty(&vars, tree)?;
+                    expr.ty(stmt, &vars, tree)?;
                     next = *next_;
                 }
             }
