@@ -193,15 +193,6 @@ impl<'f> Func<'f> {
     }
 }
 
-impl<'a> Arg<'a> {
-    pub fn as_ref(&'a self) -> Arg<'a> {
-        Arg {
-            name: self.name.as_ref(),
-            ty: self.ty,
-        }
-    }
-}
-
 impl<'d> Display for Decl<'d> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
         write!(fmt, "decl::")?;

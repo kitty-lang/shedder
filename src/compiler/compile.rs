@@ -117,10 +117,8 @@ impl<'c> Compiler<'c> {
             .add_function(name.inner(), ty.as_fn_type(&self.ctx, &args_), None);
 
         let mut args_ = FnvHashMap::default();
-        let mut a = 0;
-        for arg in args {
-            args_.insert(arg.name.clone(), func.get_nth_param(a).unwrap()); // FIXME
-            a += 1;
+        for (a, arg) in args.iter().enumerate() {
+            args_.insert(arg.name.clone(), func.get_nth_param(a as u32).unwrap()); // FIXME
         }
 
         self.funcs.insert(
@@ -194,7 +192,7 @@ impl<'c> Compiler<'c> {
         let func = self.funcs.get(&state.func)?;
         match func.blocks.get(&state.block)?.vars.get(name)? {
             Var::Alias(var) => self.get_var(state, var),
-            Var::Arg => func.args.get(name).map(|val| *val), // FIXME
+            Var::Arg => func.args.get(name).copied(),
             Var::Global(var) => Some((*var).into()),
         }
     }

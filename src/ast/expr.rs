@@ -40,8 +40,7 @@ impl<'e> Expr<'e> {
                     ));
                 }
 
-                let mut a = 0;
-                for arg in func.args.inner() {
+                for (a, arg) in func.args.inner().iter().enumerate() {
                     if arg.ty(stmt, vars, tree)? != decl.args[a].ty {
                         return Err(Error::wrong_ty(
                             stmt,
@@ -49,8 +48,6 @@ impl<'e> Expr<'e> {
                             vec![decl.args[a].ty],
                         ));
                     }
-
-                    a += 1;
                 }
 
                 Ok(decl.ret)
