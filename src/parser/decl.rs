@@ -100,11 +100,13 @@ impl<'f> Func<'f> {
             }
 
             if arg.is_none() {
-                arg = Some(try_get_ident(tokens, t)
-                    .map_err(|mut err| {
-                        err.max_after(tokens.get(t - 1).map(|token| token.pos));
-                        err
-                    })?.as_ref()
+                arg = Some(
+                    try_get_ident(tokens, t)
+                        .map_err(|mut err| {
+                            err.max_after(tokens.get(t - 1).map(|token| token.pos));
+                            err
+                        })?
+                        .as_ref(),
                 );
             } else {
                 try_eq_symbol(tokens, t, Symbol::Colon).map_err(|mut err| {
@@ -118,7 +120,10 @@ impl<'f> Func<'f> {
                     err
                 })?;
 
-                args.push(Arg { name: arg.unwrap(), ty });
+                args.push(Arg {
+                    name: arg.unwrap(),
+                    ty,
+                });
                 arg = None;
             }
 
@@ -176,12 +181,15 @@ impl<'f> Func<'f> {
             t += t_;
         }
 
-        Ok((t, Func {
-            name,
-            args,
-            ret: ty.unwrap_or(Ty::Void),
-            stmts,
-        }))
+        Ok((
+            t,
+            Func {
+                name,
+                args,
+                ret: ty.unwrap_or(Ty::Void),
+                stmts,
+            },
+        ))
     }
 }
 

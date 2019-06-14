@@ -6,11 +6,16 @@ use crate::lexer::Ty;
 use crate::parser::expr::Expr;
 
 use super::error::*;
-use super::tree::Tree;
 use super::stmt::Stmt;
+use super::tree::Tree;
 
 impl<'e> Expr<'e> {
-    pub(super) fn ty(&self, stmt: &'e Stmt, vars: &FnvHashMap<Ident<'e>, Ty>, tree: &Tree) -> Result<Ty> {
+    pub(super) fn ty(
+        &self,
+        stmt: &'e Stmt,
+        vars: &FnvHashMap<Ident<'e>, Ty>,
+        tree: &Tree,
+    ) -> Result<Ty> {
         match self {
             Expr::Literal(lit) => match lit.lit {
                 Literal::String(_) => Ok(Ty::Str),
@@ -22,7 +27,10 @@ impl<'e> Expr<'e> {
                     return Err(Error::wrong_ty(
                         stmt,
                         Ty::Void,
-                        decl.args[func.args.len()..].iter().map(|arg| arg.ty).collect(),
+                        decl.args[func.args.len()..]
+                            .iter()
+                            .map(|arg| arg.ty)
+                            .collect(),
                     ));
                 } else if func.args.len() > decl.args.len() {
                     return Err(Error::wrong_ty(

@@ -114,11 +114,7 @@ impl<'c> Compiler<'c> {
 
         let func = self
             .module()
-            .add_function(
-                name.inner(),
-                ty.as_fn_type(&self.ctx, &args_),
-                None,
-            );
+            .add_function(name.inner(), ty.as_fn_type(&self.ctx, &args_), None);
 
         let mut args_ = FnvHashMap::default();
         let mut a = 0;
@@ -163,13 +159,7 @@ impl<'c> Compiler<'c> {
             vars.insert(arg.clone(), Var::Arg);
         }
 
-        func.blocks.insert(
-            name,
-            Block {
-                block,
-                vars,
-            },
-        );
+        func.blocks.insert(name, Block { block, vars });
     }
 
     pub(super) fn add_global_string(&mut self, state: &State<'c>, name: Ident<'c>, string: &str) {
@@ -202,14 +192,9 @@ impl<'c> Compiler<'c> {
 
     pub(super) fn get_var(&self, state: &State, name: &Ident) -> Option<BasicValueEnum> {
         let func = self.funcs.get(&state.func)?;
-        match func
-            .blocks
-            .get(&state.block)?
-            .vars
-            .get(name)?
-        {
+        match func.blocks.get(&state.block)?.vars.get(name)? {
             Var::Alias(var) => self.get_var(state, var),
-            Var::Arg=> func.args.get(name).map(|val| *val), // FIXME
+            Var::Arg => func.args.get(name).map(|val| *val), // FIXME
             Var::Global(var) => Some((*var).into()),
         }
     }

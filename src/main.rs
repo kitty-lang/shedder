@@ -17,8 +17,8 @@ use compiler::compile;
 use lexer::lex;
 use lexer::Ident;
 use lexer::Ty;
-use parser::parse;
 use parser::decl::Arg;
+use parser::parse;
 
 fn main() {
     let opt = Opt::from_args();
@@ -87,7 +87,10 @@ fn main() {
     let puts = Ident::Owned("puts".into());
 
     // --- FIXME ---
-    let puts_args = vec![Arg { name: Ident::Owned("put".into()), ty: Ty::Str }];
+    let puts_args = vec![Arg {
+        name: Ident::Owned("put".into()),
+        ty: Ty::Str,
+    }];
     ast.funcs.insert(
         puts.as_ref(),
         ast::Func {
