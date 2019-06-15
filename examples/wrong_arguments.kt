@@ -1,8 +1,9 @@
 // NOTE: This is supposed to fail.
 
-func exists() {}
+func print(print: str) {
+	puts(print);
+}
 
 func main() {
-	exists();
-	doesnt_exist();
+	print();
 }
