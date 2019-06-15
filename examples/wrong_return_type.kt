@@ -1,3 +1,5 @@
+// NOTE: This is supposed to fail.
+
 func wrong_ret_ty1() {
 	return "";
 }
