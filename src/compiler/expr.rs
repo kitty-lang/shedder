@@ -37,9 +37,7 @@ impl<'e> Expr<'e> {
             Expr::Literal(lit) => lit.as_string(compiler, state),
             Expr::Func(_) => unimplemented!(),
             Expr::Var(var) => {
-                let mut ty = match compiler
-                    .get_var(state, var)
-                    .unwrap() // FIXME
+                let mut ty = match compiler.get_var(state, var).unwrap()[0] // FIXME
                     .get_type()
                 {
                     BasicTypeEnum::ArrayType(_) => unimplemented!(), // FIXME
@@ -154,24 +152,6 @@ impl<'s> DynStringSeg<'s> {
 }
 
 impl<'f> Func<'f> {
-    pub(super) fn call(&self, compiler: &Compiler, state: &State) -> Option<BasicValueEnum> {
-        let mut args = vec![];
-
-        for arg in self.args.inner() {
-            match arg {
-                Expr::Literal(lit) => {
-                    args.push(compiler.get_var(&state, &lit.name()).unwrap()); // FIXME
-                }
-                Expr::Func(func) => {
-                    args.push(func.call(compiler, state).unwrap()); // FIXME
-                }
-                Expr::Var(var) => args.push(compiler.get_var(&state, var).unwrap()), // FIXME
-            }
-        }
-
-        compiler.call(state, &self.name, &args)
-    }
-
     pub(super) fn prepare(&'f self, compiler: &mut Compiler<'f>, state: &mut State<'f>) {
         for arg in self.args.inner() {
             match arg {
@@ -185,5 +165,31 @@ impl<'f> Func<'f> {
     pub(super) fn compile(&self, compiler: &mut Compiler<'f>, state: &mut State<'f>) -> Result<()> {
         self.call(compiler, state);
         Ok(())
+    }
+
+    pub(super) fn call(&self, compiler: &Compiler, state: &State) -> Option<BasicValueEnum> {
+        let mut args = vec![];
+
+        for arg in self.args.inner() {
+            match arg {
+                Expr::Literal(lit) => {
+                    for var in compiler.get_var(&state, &lit.name()).unwrap() {
+                        // FIXME
+                        args.push(var);
+                    }
+                }
+                Expr::Func(func) => {
+                    args.push(func.call(compiler, state).unwrap()); // FIXME
+                }
+                Expr::Var(var) => {
+                    for var in compiler.get_var(&state, var).unwrap() {
+                        // FIXME
+                        args.push(var);
+                    }
+                }
+            }
+        }
+
+        compiler.call(state, &self.name, &args)
     }
 }

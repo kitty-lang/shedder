@@ -8,5 +8,5 @@ func main() {
 
 	let dyn_string = `int == ${int}; string == ${string}`;
 
-	printf(dyn_string, int, string);
+	printf(dyn_string);
 }

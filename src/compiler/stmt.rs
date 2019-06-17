@@ -1,5 +1,7 @@
 use crate::ast::Stmt;
+use crate::parser::expr::DynStringSeg;
 use crate::parser::expr::Expr;
+use crate::parser::expr::Literal;
 use crate::parser::stmt::Let;
 use crate::parser::stmt::Return;
 
@@ -33,7 +35,40 @@ impl<'l> Let<'l> {
     pub(super) fn prepare(&'l self, compiler: &mut Compiler<'l>, state: &mut State<'l>) {
         match &self.value {
             Expr::Literal(lit) => {
-                compiler.alias(state, self.name.as_ref(), lit.name());
+                match lit {
+                    Literal::RefDynString { segs, .. } => {
+                        let mut group = vec![lit.name()];
+                        for seg in *segs {
+                            if let DynStringSeg::Expr(expr) = seg {
+                                match expr {
+                                    Expr::Literal(lit) => group.push(lit.name()),
+                                    Expr::Func(_) => unimplemented!(), // FIXME
+                                    Expr::Var(var) => group.push(var.as_ref()),
+                                }
+                            }
+                        }
+
+                        compiler.register_var_group(state, self.name.as_ref(), group);
+                    }
+                    Literal::OwnedDynString { segs, .. } => {
+                        let mut group = vec![lit.name()];
+                        for seg in segs {
+                            if let DynStringSeg::Expr(expr) = seg {
+                                match expr {
+                                    Expr::Literal(lit) => group.push(lit.name()),
+                                    Expr::Func(_) => unimplemented!(), // FIXME
+                                    Expr::Var(var) => group.push(var.as_ref()),
+                                }
+                            }
+                        }
+
+                        compiler.register_var_group(state, self.name.as_ref(), group);
+                    }
+                    _ => {
+                        compiler.alias(state, self.name.as_ref(), lit.name());
+                    }
+                }
+
                 lit.prepare(compiler, state);
             }
             Expr::Func(func) => {
@@ -48,7 +83,6 @@ impl<'l> Let<'l> {
     }
 
     pub(super) fn compile(&self, _: &mut Compiler<'l>, _: &mut State<'l>) -> Result<()> {
-        println!("{}", self.value);
         match &self.value {
             Expr::Literal(_) => Ok(()),
             Expr::Func(_) => Ok(()),
@@ -68,7 +102,7 @@ impl<'r> Return<'r> {
                 lit.prepare(compiler, state);
                 compiler.ret(
                     state,
-                    Some(&compiler.get_var(state, &lit.name()).unwrap()), // FIXME
+                    Some(&compiler.get_var(state, &lit.name()).unwrap()[0]), // FIXME
                 );
             }
             _ => unimplemented!(), // FIXME
