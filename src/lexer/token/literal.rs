@@ -45,7 +45,7 @@ impl<'l> Literal<'l> {
                             if !esc {
                                 return Ok((
                                     split(rest, i),
-                                    Literal::String(&rest[0..i-1]).token(tpos),
+                                    Literal::String(&rest[0..i - 1]).token(tpos),
                                 ));
                             }
                         }
@@ -92,12 +92,9 @@ impl<'l> Literal<'l> {
                             pos.col += 1;
 
                             if !esc {
-                                segs.push(DynStringSeg::String(&rest[last..i-1]));
+                                segs.push(DynStringSeg::String(&rest[last..i - 1]));
 
-                                return Ok((
-                                    split(rest, i),
-                                    Literal::DynString(segs).token(tpos),
-                                ));
+                                return Ok((split(rest, i), Literal::DynString(segs).token(tpos)));
                             }
                         }
                         "$" => {
@@ -105,7 +102,7 @@ impl<'l> Literal<'l> {
                             pos.col += 1;
 
                             if &rest[i..=i] == "{" {
-                                segs.push(DynStringSeg::String(&rest[last..i-1]));
+                                segs.push(DynStringSeg::String(&rest[last..i - 1]));
                                 i += 1;
                                 pos.col += 1;
 
@@ -165,7 +162,8 @@ impl<'l> Literal<'l> {
                             split(input, i),
                             Literal::Int(
                                 i32::from_str_radix(&input[0..i], 10).unwrap(), // FIXME
-                            ).token(tpos),
+                            )
+                            .token(tpos),
                         ));
                     } else {
                         break;

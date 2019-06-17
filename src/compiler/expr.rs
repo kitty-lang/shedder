@@ -38,7 +38,8 @@ impl<'e> Expr<'e> {
             Expr::Func(_) => unimplemented!(),
             Expr::Var(var) => {
                 let mut ty = match compiler
-                    .get_var(state, var).unwrap() // FIXME
+                    .get_var(state, var)
+                    .unwrap() // FIXME
                     .get_type()
                 {
                     BasicTypeEnum::ArrayType(_) => unimplemented!(), // FIXME
@@ -70,7 +71,7 @@ impl<'e> Expr<'e> {
                         AnyTypeEnum::PointerType(ptr) => ty = ptr.get_element_type(),
                         AnyTypeEnum::StructType(_) => unimplemented!(), // FIXME
                         AnyTypeEnum::VectorType(_) => unimplemented!(), // FIXME
-                        AnyTypeEnum::VoidType(_) => unimplemented!(), // FIXME
+                        AnyTypeEnum::VoidType(_) => unimplemented!(),   // FIXME
                     }
                 }
             }
@@ -116,7 +117,9 @@ impl<'l> Literal<'l> {
                 for seg in *segs {
                     match seg {
                         DynStringSeg::String(string_) => string.push_str(string_),
-                        DynStringSeg::Expr(expr) => string.push_str(&expr.as_string(compiler, state)),
+                        DynStringSeg::Expr(expr) => {
+                            string.push_str(&expr.as_string(compiler, state))
+                        }
                     }
                 }
 
@@ -128,7 +131,9 @@ impl<'l> Literal<'l> {
                 for seg in segs {
                     match seg {
                         DynStringSeg::String(string_) => string.push_str(string_),
-                        DynStringSeg::Expr(expr) => string.push_str(&expr.as_string(compiler, state)),
+                        DynStringSeg::Expr(expr) => {
+                            string.push_str(&expr.as_string(compiler, state))
+                        }
                     }
                 }
 
@@ -139,7 +144,8 @@ impl<'l> Literal<'l> {
 }
 
 impl<'s> DynStringSeg<'s> {
-    fn as_string(&self, compiler: &Compiler, state: &State) -> String { // FIXME: borrow
+    fn as_string(&self, compiler: &Compiler, state: &State) -> String {
+        // FIXME: borrow
         match self {
             DynStringSeg::String(string) => string.to_string(), // FIXME: borrow
             DynStringSeg::Expr(expr) => expr.as_string(compiler, state),

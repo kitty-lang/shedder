@@ -108,15 +108,23 @@ impl<'c> Compiler<'c> {
         self.module = Some(self.ctx.create_module(module));
     }
 
-    pub(super) fn add_function(&mut self, name: Ident<'c>, args: &[Arg<'c>], ty: CompilerTy<'c>, variadic: bool) {
+    pub(super) fn add_function(
+        &mut self,
+        name: Ident<'c>,
+        args: &[Arg<'c>],
+        ty: CompilerTy<'c>,
+        variadic: bool,
+    ) {
         let mut args_ = vec![];
         for arg in args {
             args_.push(CompilerTy::from(arg.ty).as_basic_type(&self.ctx));
         }
 
-        let func = self
-            .module()
-            .add_function(name.inner(), ty.as_fn_type(&self.ctx, &args_, variadic), None);
+        let func = self.module().add_function(
+            name.inner(),
+            ty.as_fn_type(&self.ctx, &args_, variadic),
+            None,
+        );
 
         let mut args_ = FnvHashMap::default();
         for (a, arg) in args.iter().enumerate() {
@@ -134,7 +142,12 @@ impl<'c> Compiler<'c> {
         );
     }
 
-    pub(super) fn add_external_function(&mut self, name: Ident<'c>, ty: CompilerTy<'c>, variadic: bool) {
+    pub(super) fn add_external_function(
+        &mut self,
+        name: Ident<'c>,
+        ty: CompilerTy<'c>,
+        variadic: bool,
+    ) {
         let func = self.module().add_function(
             name.inner(),
             ty.as_fn_type(&self.ctx, &[], variadic),
@@ -164,7 +177,12 @@ impl<'c> Compiler<'c> {
         func.blocks.insert(name, Block { block, vars });
     }
 
-    pub(super) fn register_var(&mut self, state: &State<'c>, name: Ident<'c>, value: BasicValueEnum) {
+    pub(super) fn register_var(
+        &mut self,
+        state: &State<'c>,
+        name: Ident<'c>,
+        value: BasicValueEnum,
+    ) {
         self.funcs
             .get_mut(&state.func)
             .unwrap() // FIXME
@@ -293,9 +311,7 @@ impl<'t> CompilerTy<'t> {
     fn as_basic_type(&self, ctx: &Context) -> BasicTypeEnum {
         match self {
             CompilerTy::Ty(ty) => match ty {
-                Ty::I32 => {
-                    ctx.i32_type().into()
-                }
+                Ty::I32 => ctx.i32_type().into(),
                 Ty::Str => {
                     ctx.i8_type()
                         .ptr_type(AddressSpace::Generic) // TODO: choose address space

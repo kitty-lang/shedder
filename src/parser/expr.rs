@@ -43,7 +43,7 @@ pub enum Literal<'l> {
     OwnedDynString {
         name: Ident<'l>,
         segs: Vec<DynStringSeg<'l>>,
-    }
+    },
 }
 
 #[derive(Debug)]
@@ -93,20 +93,30 @@ impl<'e> Expr<'e> {
 
         if let TokenVariant::Literal(lit) = &tokens[0].token {
             match lit {
-                lexer::Literal::Int(int) => return Ok((
-                    1,
-                    Expr::Literal(Literal::Int {
-                        name: Ident::Owned(format!("lit{}", LITERALS.fetch_add(1, Ordering::SeqCst))),
-                        int: *int,
-                    }),
-                )),
-                lexer::Literal::String(string) => return Ok((
-                    1,
-                    Expr::Literal(Literal::String {
-                        name: Ident::Owned(format!("lit{}", LITERALS.fetch_add(1, Ordering::SeqCst))),
-                        string,
-                    }),
-                )),
+                lexer::Literal::Int(int) => {
+                    return Ok((
+                        1,
+                        Expr::Literal(Literal::Int {
+                            name: Ident::Owned(format!(
+                                "lit{}",
+                                LITERALS.fetch_add(1, Ordering::SeqCst)
+                            )),
+                            int: *int,
+                        }),
+                    ))
+                }
+                lexer::Literal::String(string) => {
+                    return Ok((
+                        1,
+                        Expr::Literal(Literal::String {
+                            name: Ident::Owned(format!(
+                                "lit{}",
+                                LITERALS.fetch_add(1, Ordering::SeqCst)
+                            )),
+                            string,
+                        }),
+                    ))
+                }
                 lexer::Literal::DynString(segs_) => {
                     let mut segs = vec![];
                     for seg in segs_ {
@@ -125,7 +135,10 @@ impl<'e> Expr<'e> {
                     return Ok((
                         1,
                         Expr::Literal(Literal::OwnedDynString {
-                            name: Ident::Owned(format!("lit{}", LITERALS.fetch_add(1, Ordering::SeqCst))),
+                            name: Ident::Owned(format!(
+                                "lit{}",
+                                LITERALS.fetch_add(1, Ordering::SeqCst)
+                            )),
                             segs,
                         }),
                     ));

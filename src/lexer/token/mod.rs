@@ -16,8 +16,8 @@ mod ty;
 
 pub use ident::Ident;
 pub use keyword::Keyword;
-pub use literal::Literal;
 pub use literal::DynStringSeg;
+pub use literal::Literal;
 pub use symbol::Symbol;
 pub use ty::Ty;
 
