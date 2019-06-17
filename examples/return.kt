@@ -3,5 +3,5 @@ func hello_world(): str {
 }
 
 func main() {
-	puts(hello_world());
+	printf(hello_world());
 }

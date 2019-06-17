@@ -1,16 +1,16 @@
 func before() {
-	puts("before");
+	printf("before");
 }
 
 func main() {
 	let between = "between";
 
 	before();
-	puts(between);
+	printf(between);
 	after();
 }
 
 
 func after() {
-	puts("after");
+	printf("after");
 }

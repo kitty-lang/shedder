@@ -8,7 +8,12 @@ use super::error::*;
 
 impl<'f> Func<'f> {
     pub(super) fn declare(&'f self, compiler: &mut Compiler<'f>) {
-        compiler.add_function(self.name.as_ref(), &self.args, self.ret.into());
+        compiler.add_function(
+            self.name.as_ref(),
+            &self.args,
+            self.ret.into(),
+            false, // FIXME: optionally variadic
+        );
     }
 
     pub(super) fn compile(&'f self, ast: &'f Tree, compiler: &mut Compiler<'f>) -> Result<()> {

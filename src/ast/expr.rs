@@ -1,9 +1,9 @@
 use fnv::FnvHashMap;
 
 use crate::lexer::Ident;
-use crate::lexer::Literal;
 use crate::lexer::Ty;
 use crate::parser::expr::Expr;
+use crate::parser::expr::Literal;
 
 use super::error::*;
 use super::stmt::Stmt;
@@ -17,8 +17,11 @@ impl<'e> Expr<'e> {
         tree: &Tree,
     ) -> Result<Ty> {
         match self {
-            Expr::Literal(lit) => match lit.lit {
-                Literal::String(_) => Ok(Ty::Str),
+            Expr::Literal(lit) => match lit {
+                Literal::Int { .. } => Ok(Ty::I32),
+                Literal::String { .. } => Ok(Ty::Str),
+                Literal::RefDynString { .. } => Ok(Ty::Str),
+                Literal::OwnedDynString { .. } => Ok(Ty::Str),
             },
             Expr::Func(func) => {
                 let decl = tree.funcs.get(&func.name).unwrap(); // FIXME
@@ -32,7 +35,7 @@ impl<'e> Expr<'e> {
                             .map(|arg| arg.ty)
                             .collect(),
                     ));
-                } else if func.args.len() > decl.args.len() {
+                } else if func.args.len() > decl.args.len() && !decl.variadic {
                     return Err(Error::wrong_ty(
                         stmt,
                         func.args.inner()[decl.args.len()].ty(stmt, vars, tree)?,
@@ -41,6 +44,10 @@ impl<'e> Expr<'e> {
                 }
 
                 for (a, arg) in func.args.inner().iter().enumerate() {
+                    if a >= decl.args.len() {
+                        break;
+                    }
+
                     if arg.ty(stmt, vars, tree)? != decl.args[a].ty {
                         return Err(Error::wrong_ty(
                             stmt,

@@ -1,8 +1,8 @@
 func before(before: str): str {
-	puts(before);
+	printf(before);
 	return "after";
 }
 
 func main() {
-	puts(before("before"));
+	printf(before("before"));
 }

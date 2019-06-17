@@ -139,7 +139,7 @@ impl<'l> Let<'l> {
 
         t += 1;
         let (t_, value) = Expr::parse(split(tokens, t)).map_err(|mut err| {
-            err.max_after(tokens.get(t).map(|token| token.pos));
+            err.max_after(tokens.get(t - 1).map(|token| token.pos));
             err
         })?;
 

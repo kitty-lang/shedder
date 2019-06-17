@@ -20,9 +20,11 @@ pub fn compile(ast: &Tree) -> Result<Compiled> {
 
     // --- FIXME ---
     compiler.new_module("_");
+    let ret = &[Ty::Str.into()];
     compiler.add_external_function(
-        Ident::Owned("puts".into()),
-        CompilerTy::Ty(Ty::Void).fn_type(&[Ty::Str.into()]),
+        Ident::Owned("printf".into()),
+        CompilerTy::Ty(Ty::Void).fn_type(ret),
+        true,
     );
     // --- FIXME ---
 
