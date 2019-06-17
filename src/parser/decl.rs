@@ -27,6 +27,7 @@ pub struct Func<'f> {
     pub name: Ident<'f>,
     pub args: Vec<Arg<'f>>,
     pub ret: Ty,
+    pub variadic: bool,
     pub stmts: Vec<Stmt<'f>>,
 }
 
@@ -187,6 +188,7 @@ impl<'f> Func<'f> {
                 name,
                 args,
                 ret: ty.unwrap_or(Ty::Void),
+                variadic: false, // FIXME
                 stmts,
             },
         ))
@@ -210,7 +212,7 @@ impl<'f> Display for Func<'f> {
             write!(fmt, " {} ", arg)?;
         }
 
-        write!(fmt, "], ret={})", self.ret)
+        write!(fmt, "], ret={}, variadic={})", self.ret, self.variadic)
     }
 }
 

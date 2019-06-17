@@ -48,6 +48,7 @@ pub(super) struct State<'s> {
 #[derive(Debug)]
 struct Func<'f> {
     func: FunctionValue,
+    ty: CompilerTy<'f>,
     args: FnvHashMap<Ident<'f>, BasicValueEnum>,
     blocks: FnvHashMap<Ident<'f>, Block<'f>>,
 }
@@ -62,6 +63,7 @@ struct Block<'b> {
 enum Var<'v> {
     Alias(Ident<'v>),
     Arg,
+    Var(BasicValueEnum),
     Global(PointerValue),
 }
 
@@ -106,7 +108,7 @@ impl<'c> Compiler<'c> {
         self.module = Some(self.ctx.create_module(module));
     }
 
-    pub(super) fn add_function(&mut self, name: Ident<'c>, args: &[Arg<'c>], ty: CompilerTy) {
+    pub(super) fn add_function(&mut self, name: Ident<'c>, args: &[Arg<'c>], ty: CompilerTy<'c>, variadic: bool) {
         let mut args_ = vec![];
         for arg in args {
             args_.push(CompilerTy::from(arg.ty).as_basic_type(&self.ctx));
@@ -114,7 +116,7 @@ impl<'c> Compiler<'c> {
 
         let func = self
             .module()
-            .add_function(name.inner(), ty.as_fn_type(&self.ctx, &args_), None);
+            .add_function(name.inner(), ty.as_fn_type(&self.ctx, &args_, variadic), None);
 
         let mut args_ = FnvHashMap::default();
         for (a, arg) in args.iter().enumerate() {
@@ -125,16 +127,17 @@ impl<'c> Compiler<'c> {
             name,
             Func {
                 func,
+                ty,
                 args: args_,
                 blocks: FnvHashMap::default(),
             },
         );
     }
 
-    pub(super) fn add_external_function(&mut self, name: Ident<'c>, ty: CompilerTy) {
+    pub(super) fn add_external_function(&mut self, name: Ident<'c>, ty: CompilerTy<'c>, variadic: bool) {
         let func = self.module().add_function(
             name.inner(),
-            ty.as_fn_type(&self.ctx, &[]),
+            ty.as_fn_type(&self.ctx, &[], variadic),
             Some(Linkage::AvailableExternally),
         );
 
@@ -142,6 +145,7 @@ impl<'c> Compiler<'c> {
             name,
             Func {
                 func,
+                ty,
                 args: FnvHashMap::default(), // FIXME
                 blocks: FnvHashMap::default(),
             },
@@ -158,6 +162,17 @@ impl<'c> Compiler<'c> {
         }
 
         func.blocks.insert(name, Block { block, vars });
+    }
+
+    pub(super) fn register_var(&mut self, state: &State<'c>, name: Ident<'c>, value: BasicValueEnum) {
+        self.funcs
+            .get_mut(&state.func)
+            .unwrap() // FIXME
+            .blocks
+            .get_mut(&state.block)
+            .unwrap() // FIXME
+            .vars
+            .insert(name, Var::Var(value));
     }
 
     pub(super) fn add_global_string(&mut self, state: &State<'c>, name: Ident<'c>, string: &str) {
@@ -177,6 +192,23 @@ impl<'c> Compiler<'c> {
         block.vars.insert(name, Var::Global(var));
     }
 
+    pub(super) fn const_int(&mut self, state: &State<'c>, name: Ident<'c>, value: u64) {
+        let block = self
+            .funcs
+            .get_mut(&state.func)
+            .unwrap() // FIXME
+            .blocks
+            .get_mut(&state.block)
+            .unwrap(); // FIXME
+        self.builder.position_at_end(&block.block);
+
+        let var = self
+            .ctx
+            .i32_type() // FIXME: custom size
+            .const_int(value, false); // FIXME: custom `sign_extend` value
+        block.vars.insert(name, Var::Var(var.into()));
+    }
+
     pub(super) fn alias(&mut self, state: &State<'c>, alias: Ident<'c>, var: Ident<'c>) {
         self.funcs
             .get_mut(&state.func)
@@ -193,6 +225,7 @@ impl<'c> Compiler<'c> {
         match func.blocks.get(&state.block)?.vars.get(name)? {
             Var::Alias(var) => self.get_var(state, var),
             Var::Arg => func.args.get(name).copied(),
+            Var::Var(var) => Some(*var),
             Var::Global(var) => Some((*var).into()),
         }
     }
@@ -260,6 +293,9 @@ impl<'t> CompilerTy<'t> {
     fn as_basic_type(&self, ctx: &Context) -> BasicTypeEnum {
         match self {
             CompilerTy::Ty(ty) => match ty {
+                Ty::I32 => {
+                    ctx.i32_type().into()
+                }
                 Ty::Str => {
                     ctx.i8_type()
                         .ptr_type(AddressSpace::Generic) // TODO: choose address space
@@ -271,15 +307,16 @@ impl<'t> CompilerTy<'t> {
         }
     }
 
-    fn as_fn_type(&self, ctx: &Context, args: &[BasicTypeEnum]) -> FunctionType {
+    fn as_fn_type(&self, ctx: &Context, args: &[BasicTypeEnum], variadic: bool) -> FunctionType {
         match self {
             CompilerTy::Ty(ty) => match ty {
+                Ty::I32 => ctx.i32_type().fn_type(args, variadic),
                 Ty::Str => {
                     ctx.i8_type()
                         .ptr_type(AddressSpace::Generic) // TODO: choose address space
-                        .fn_type(args, false) // TODO: support variadic functions
+                        .fn_type(args, variadic)
                 }
-                Ty::Void => ctx.void_type().fn_type(args, false), // TODO: support variadic functions
+                Ty::Void => ctx.void_type().fn_type(args, variadic),
             },
             CompilerTy::FunctionType { args: args_, ret } => {
                 assert!(args.is_empty()); // FIXME
@@ -289,7 +326,7 @@ impl<'t> CompilerTy<'t> {
                     args.push(arg.as_basic_type(ctx));
                 }
 
-                ret.as_fn_type(ctx, &args)
+                ret.as_fn_type(ctx, &args, variadic)
             }
         }
     }

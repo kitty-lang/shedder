@@ -84,25 +84,27 @@ fn main() {
     println!();
 
     let mut ast = ast::Tree::build(&[&main]);
-    let puts = Ident::Owned("puts".into());
 
     // --- FIXME ---
-    let puts_args = vec![Arg {
-        name: Ident::Owned("put".into()),
+    let printf = Ident::Owned("printf".into());
+    let printf_args = vec![Arg {
+        name: Ident::Owned("printf".into()),
         ty: Ty::Str,
     }];
+
     ast.funcs.insert(
-        puts.as_ref(),
+        printf.as_ref(),
         ast::Func {
-            name: puts.as_ref(),
-            args: &puts_args,
+            name: printf.as_ref(),
+            args: &printf_args,
             ret: lexer::Ty::Void,
+            variadic: true,
             start: None,
         },
     );
 
     for module in ast.modules.values_mut() {
-        module.funcs.insert(puts.as_ref());
+        module.funcs.insert(printf.as_ref());
     }
     // --- FIXME ---
 
@@ -133,10 +135,10 @@ fn main() {
 
     // --- FIXME ---
     for module in ast.modules.values_mut() {
-        module.funcs.remove(&puts);
+        module.funcs.remove(&printf);
     }
 
-    ast.funcs.remove(&puts);
+    ast.funcs.remove(&printf);
     // --- FIXME ---
 
     println!();

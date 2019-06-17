@@ -1,5 +1,5 @@
 func print(print: str) {
-	puts(print);
+	printf(print);
 }
 
 func main() {

@@ -14,6 +14,7 @@ pub struct Func<'f> {
     pub name: Ident<'f>,
     pub args: &'f [Arg<'f>],
     pub ret: Ty,
+    pub variadic: bool,
     pub start: Option<usize>,
 }
 
@@ -24,6 +25,7 @@ impl<'f> Func<'f> {
             name: func.name.as_ref(),
             args: &func.args,
             ret: func.ret,
+            variadic: func.variadic,
             start: None,
         };
 

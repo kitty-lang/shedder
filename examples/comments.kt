@@ -1,6 +1,6 @@
 // A // B // C
 func one() {
-	puts("Hello, World!");
+	printf("Hello, World!");
 }
 /* A    B    C */
 func two() {

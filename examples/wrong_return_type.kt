@@ -6,6 +6,4 @@ func wrong_ret_ty1() {
 
 func wrong_ret_ty2(): str {}
 
-func main() {
-
-}
+func main() {}

@@ -33,16 +33,25 @@ impl<'l> Let<'l> {
     pub(super) fn prepare(&'l self, compiler: &mut Compiler<'l>, state: &mut State<'l>) {
         match &self.value {
             Expr::Literal(lit) => {
-                compiler.alias(state, self.name.as_ref(), lit.name.as_ref());
+                compiler.alias(state, self.name.as_ref(), lit.name());
                 lit.prepare(compiler, state);
+            }
+            Expr::Func(func) => {
+                compiler.register_var(
+                    state,
+                    self.name.as_ref(),
+                    func.call(compiler, state).unwrap(), // FIXME
+                );
             }
             _ => unimplemented!(), // FIXME
         }
     }
 
     pub(super) fn compile(&self, _: &mut Compiler<'l>, _: &mut State<'l>) -> Result<()> {
+        println!("{}", self.value);
         match &self.value {
             Expr::Literal(_) => Ok(()),
+            Expr::Func(_) => Ok(()),
             _ => unimplemented!(), // FIXME
         }
     }
@@ -59,7 +68,7 @@ impl<'r> Return<'r> {
                 lit.prepare(compiler, state);
                 compiler.ret(
                     state,
-                    Some(&compiler.get_var(state, &lit.name).unwrap()), // FIXME
+                    Some(&compiler.get_var(state, &lit.name()).unwrap()), // FIXME
                 );
             }
             _ => unimplemented!(), // FIXME

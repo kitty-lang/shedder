@@ -27,9 +27,29 @@ pub enum Expr<'e> {
 }
 
 #[derive(Debug)]
-pub struct Literal<'l> {
-    pub name: Ident<'l>,
-    pub lit: &'l lexer::Literal<'l>,
+pub enum Literal<'l> {
+    Int {
+        name: Ident<'l>,
+        int: i32,
+    },
+    String {
+        name: Ident<'l>,
+        string: &'l str,
+    },
+    RefDynString {
+        name: Ident<'l>,
+        segs: &'l [DynStringSeg<'l>],
+    },
+    OwnedDynString {
+        name: Ident<'l>,
+        segs: Vec<DynStringSeg<'l>>,
+    }
+}
+
+#[derive(Debug)]
+pub enum DynStringSeg<'s> {
+    String(&'s str),
+    Expr(Expr<'s>),
 }
 
 #[derive(Debug)]
@@ -47,10 +67,7 @@ pub enum Args<'a> {
 impl<'e> Expr<'e> {
     pub fn as_ref(&'e self) -> Expr<'e> {
         match self {
-            Expr::Literal(Literal { name, lit }) => Expr::Literal(Literal {
-                name: name.as_ref(),
-                lit,
-            }),
+            Expr::Literal(lit) => Expr::Literal(lit.as_ref()),
             Expr::Func(Func { name, args }) => Expr::Func(Func {
                 name: name.as_ref(),
                 args: args.as_ref(),
@@ -61,9 +78,9 @@ impl<'e> Expr<'e> {
 
     pub(super) fn handled() -> Vec<TokenTy> {
         let mut handled = vec![];
-        handled.append(&mut Func::handled());
         handled.push(TokenTy::Literal);
-        // handled.push(TokenTy::Ident); // NOTE: already in `Func::handled`
+        handled.append(&mut Func::handled());
+        handled.push(TokenTy::Ident);
         handled
     }
 
@@ -75,13 +92,45 @@ impl<'e> Expr<'e> {
         let mut error = Error::multiple(vec![]);
 
         if let TokenVariant::Literal(lit) = &tokens[0].token {
-            return Ok((
-                1,
-                Expr::Literal(Literal {
-                    name: Ident::Owned(format!("lit{}", LITERALS.fetch_add(1, Ordering::SeqCst))),
-                    lit,
-                }),
-            ));
+            match lit {
+                lexer::Literal::Int(int) => return Ok((
+                    1,
+                    Expr::Literal(Literal::Int {
+                        name: Ident::Owned(format!("lit{}", LITERALS.fetch_add(1, Ordering::SeqCst))),
+                        int: *int,
+                    }),
+                )),
+                lexer::Literal::String(string) => return Ok((
+                    1,
+                    Expr::Literal(Literal::String {
+                        name: Ident::Owned(format!("lit{}", LITERALS.fetch_add(1, Ordering::SeqCst))),
+                        string,
+                    }),
+                )),
+                lexer::Literal::DynString(segs_) => {
+                    let mut segs = vec![];
+                    for seg in segs_ {
+                        match seg {
+                            lexer::DynStringSeg::String(string) => {
+                                segs.push(DynStringSeg::String(string));
+                            }
+                            lexer::DynStringSeg::Insert(tokens) => {
+                                let (i, expr) = Expr::parse(tokens)?;
+                                assert_eq!(i, tokens.len()); // FIXME
+                                segs.push(DynStringSeg::Expr(expr));
+                            }
+                        }
+                    }
+
+                    return Ok((
+                        1,
+                        Expr::Literal(Literal::OwnedDynString {
+                            name: Ident::Owned(format!("lit{}", LITERALS.fetch_add(1, Ordering::SeqCst))),
+                            segs,
+                        }),
+                    ));
+                }
+            }
         } else {
             error = error.concat(Error::wrong_token(&tokens[0], vec![TokenTy::Literal]));
         }
@@ -106,6 +155,38 @@ impl<'e> Expr<'e> {
     }
 }
 
+impl<'l> Literal<'l> {
+    pub fn as_ref(&'l self) -> Literal<'l> {
+        match self {
+            Literal::Int { name, int } => Literal::Int {
+                name: name.as_ref(),
+                int: *int,
+            },
+            Literal::String { name, string } => Literal::String {
+                name: name.as_ref(),
+                string,
+            },
+            Literal::RefDynString { name, segs } => Literal::RefDynString {
+                name: name.as_ref(),
+                segs,
+            },
+            Literal::OwnedDynString { name, segs } => Literal::RefDynString {
+                name: name.as_ref(),
+                segs,
+            },
+        }
+    }
+
+    pub fn name(&'l self) -> Ident<'l> {
+        match self {
+            Literal::Int { name, .. } => name.as_ref(),
+            Literal::String { name, .. } => name.as_ref(),
+            Literal::RefDynString { name, .. } => name.as_ref(),
+            Literal::OwnedDynString { name, .. } => name.as_ref(),
+        }
+    }
+}
+
 impl<'f> Func<'f> {
     fn handled() -> Vec<TokenTy> {
         vec![TokenTy::Ident]
@@ -124,6 +205,7 @@ impl<'f> Func<'f> {
 
         t += 1;
         loop {
+            println!("{:?}", split(tokens, t));
             if t >= tokens.len() {
                 let mut handled = Expr::handled();
                 handled.push(TokenTy::Symbol(Symbol::RightParen));
@@ -140,6 +222,8 @@ impl<'f> Func<'f> {
                     err.max_after(tokens.get(t - 1).map(|token| token.pos));
                     err
                 })?;
+
+                t += 1;
             }
 
             let (t_, expr) = Expr::parse(split(tokens, t))?;
@@ -191,7 +275,41 @@ impl<'e> Display for Expr<'e> {
 
 impl<'l> Display for Literal<'l> {
     fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-        write!(fmt, "lit(name={}, value={})", self.name.inner(), self.lit)
+        match self {
+            Literal::Int { name, int } => {
+                write!(fmt, "lit(name={}, value=int({}))", name.inner(), int)
+            }
+            Literal::String { name, string } => {
+                write!(fmt, "lit(name={}, value=string({}))", name.inner(), string)
+            }
+            Literal::RefDynString { name, segs } => {
+                write!(fmt, "lit(name={}, value=dyn_string[", name.inner())?;
+
+                for seg in *segs {
+                    write!(fmt, " {} ", seg)?;
+                }
+
+                write!(fmt, "]")
+            }
+            Literal::OwnedDynString { name, segs } => {
+                write!(fmt, "lit(name={}, value=dyn_string[", name.inner())?;
+
+                for seg in segs {
+                    write!(fmt, " {} ", seg)?;
+                }
+
+                write!(fmt, "]")
+            }
+        }
+    }
+}
+
+impl<'s> Display for DynStringSeg<'s> {
+    fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+        match self {
+            DynStringSeg::String(string) => write!(fmt, "string({:?}", string),
+            DynStringSeg::Expr(expr) => write!(fmt, "{}", expr),
+        }
     }
 }
 
