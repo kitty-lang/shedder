@@ -218,7 +218,6 @@ impl<'f> Func<'f> {
 
         t += 1;
         loop {
-            println!("{:?}", split(tokens, t));
             if t >= tokens.len() {
                 let mut handled = Expr::handled();
                 handled.push(TokenTy::Symbol(Symbol::RightParen));
@@ -240,8 +239,8 @@ impl<'f> Func<'f> {
             }
 
             let (t_, expr) = Expr::parse(split(tokens, t))?;
-
             args.push(expr);
+
             t += t_;
         }
 

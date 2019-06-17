@@ -64,6 +64,7 @@ enum Var<'v> {
     Alias(Ident<'v>),
     Arg,
     Var(BasicValueEnum),
+    Group(Vec<Ident<'v>>),
     Global(PointerValue),
 }
 
@@ -193,6 +194,22 @@ impl<'c> Compiler<'c> {
             .insert(name, Var::Var(value));
     }
 
+    pub(super) fn register_var_group(
+        &mut self,
+        state: &State<'c>,
+        name: Ident<'c>,
+        group: Vec<Ident<'c>>,
+    ) {
+        self.funcs
+            .get_mut(&state.func)
+            .unwrap() // FIXME
+            .blocks
+            .get_mut(&state.block)
+            .unwrap() // FIXME
+            .vars
+            .insert(name, Var::Group(group));
+    }
+
     pub(super) fn add_global_string(&mut self, state: &State<'c>, name: Ident<'c>, string: &str) {
         let block = self
             .funcs
@@ -238,13 +255,21 @@ impl<'c> Compiler<'c> {
             .insert(alias, Var::Alias(var));
     }
 
-    pub(super) fn get_var(&self, state: &State, name: &Ident) -> Option<BasicValueEnum> {
+    pub(super) fn get_var(&self, state: &State, name: &Ident) -> Option<Vec<BasicValueEnum>> {
         let func = self.funcs.get(&state.func)?;
         match func.blocks.get(&state.block)?.vars.get(name)? {
             Var::Alias(var) => self.get_var(state, var),
-            Var::Arg => func.args.get(name).copied(),
-            Var::Var(var) => Some(*var),
-            Var::Global(var) => Some((*var).into()),
+            Var::Arg => func.args.get(name).map(|arg| vec![*arg]),
+            Var::Var(var) => Some(vec![*var]),
+            Var::Group(vars_) => {
+                let mut vars = vec![];
+                for var in vars_ {
+                    vars.append(&mut self.get_var(state, var).unwrap());
+                }
+
+                Some(vars)
+            }
+            Var::Global(var) => Some(vec![(*var).into()]),
         }
     }
 
